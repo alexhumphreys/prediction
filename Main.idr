@@ -41,6 +41,30 @@ board2 : Board2
 board2 = let countries = map MkCountry ["Hungary", "canada"] in
   MkBoard $ map (\x => (x, startColumn2)) countries
 
+data Country3 = MkCountry3 String
+data Board3 = MkBoard3 (List (Country3, Nat))
+data Player = MkPlayer String Nat (List Country3)
+
+validPrices : List Nat
+validPrices = [5, 10, 30, 50, 80, 90, 100]
+
+sellPrice : List Nat -> Nat -> Maybe Nat
+sellPrice xs k = go (reverse xs) k
+where
+  go : List Nat -> Nat -> Maybe Nat
+  go [] k = Nothing
+  go (x :: xs) 0 = Just x
+  go (x :: xs) (S k) = go xs k
+
+buyPrice : List Nat -> Nat -> Maybe Nat
+buyPrice xs 0 = Nothing
+buyPrice xs (S k) = go (reverse xs) (k)
+where
+  go : List Nat -> Nat -> Maybe Nat
+  go [] k = Nothing
+  go (x :: xs) 0 = Just x
+  go (x :: xs) (S k) = go xs k
+
 main : IO ()
 main = do
   putStrLn $ show board
