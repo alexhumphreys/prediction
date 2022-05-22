@@ -3,23 +3,25 @@ data Country = MkCountry String
 Show Country where
   show (MkCountry x) = x
 
-data Card = MkCard Country Nat
+data Card = MkCard Country
 
 Show Card where
-  show (MkCard x k) = show x ++ " " ++ show k
+  show (MkCard x) = "MkCard \{show x}"
+
+Column : Type
+Column = List (Nat, Maybe Card)
 
 Board : Type
-Board = List (List Card)
+Board = List Column
 
-countries : List Country
-countries = map MkCountry ["Hungary", "canada"]
+cards : List Card
+cards = map (MkCard . MkCountry) ["Hungary", "canada"]
 
-card : Country -> List Card
-card c = let prices = [1..10] in
-           map (MkCard c) prices
+column : Card -> Column
+column x = map (\n => MkPair n (Just x)) [1..4]
 
 board : Board
-board = map card countries
+board = map column cards
 
 main : IO ()
 main = putStrLn $ show board
