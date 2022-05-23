@@ -81,22 +81,33 @@ players =
 game : Game
 game = MkGame board3 players
 
-buyCard : Player -> Country3 -> Board3 -> Board3
-buyCard player country b@(MkBoard3 xs) =
+buyCard : Player -> Country3 -> Game -> Game
+buyCard player country g@(MkGame b@(MkBoard3 xs) players) =
   let remainingCards = lookup country xs in
   case remainingCards of
-       Nothing => b
-       (Just 0) => b
-       (Just (S k)) => boardSell (country, (S k)) k country b
+       Nothing => g
+       (Just 0) => g
+       (Just (S k)) =>
+          let newBoard = boardSell (country, (S k)) k country b
+              newPlayer = playerBuy 5 country player
+          in
+              MkGame newBoard $ replacePlayer newPlayer players
 where
-  playerPurchase : Nat -> Country3 -> Player -> Player
-  playerPurchase n c (MkPlayer x k ys) =
+  playerBuy : Nat -> Country3 -> Player -> Player
+  playerBuy n c (MkPlayer x k ys) =
     MkPlayer x (minus k n) (c :: ys)
 
   boardSell : (Country3, Nat) -> Nat -> Country3 -> Board3 -> Board3
   boardSell current newBalance country (MkBoard3 ys) =
     let new = (country, newBalance) in
     MkBoard3 $ replaceOn current new ys
+
+  replacePlayer : Player -> List Player -> List Player
+  replacePlayer _ [] = []
+  replacePlayer a@(MkPlayer x _ _) (b@(MkPlayer y _ _) :: xs) =
+    case x == y of
+         False => b :: replacePlayer a xs
+         True => a :: xs
 
 main : IO ()
 main = do
