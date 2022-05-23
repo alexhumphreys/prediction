@@ -47,8 +47,18 @@ Eq Country3 where
   (==) (MkCountry3 x) (MkCountry3 y) = x == y
 
 data Board3 = MkBoard3 (List (Country3, Nat))
-data Player = MkPlayer String Nat (List Country3)
-data Game = MkGame Board3 (List Player)
+data PlayerName = MkPlayerName String
+Eq PlayerName where
+  (==) (MkPlayerName x) (MkPlayerName y) = x == y
+
+data PlayerStuff = MkPlayerStuff Nat (List Country3)
+Eq PlayerStuff where
+  (==) (MkPlayerStuff x w) (MkPlayerStuff y z) = x == y && w == z
+
+Players : Type
+Players = (List (PlayerName, PlayerStuff))
+
+data Game = MkGame Board3 Players
 
 validPrices : List Nat
 validPrices = [5, 10, 30, 50, 80, 90, 100]
@@ -73,51 +83,39 @@ where
 board3 : Board3
 board3 = MkBoard3 [(MkCountry3 "canada", 7), (MkCountry3 "hungary", 7)]
 
-players : List Player
+players : Players
 players =
-  [ MkPlayer "player A" 100 []
-  , MkPlayer "player B" 100 []]
+  [ ((MkPlayerName "player A"), (MkPlayerStuff 100 []))
+  , ((MkPlayerName "player B"), (MkPlayerStuff 100 []))]
 
 game : Game
 game = MkGame board3 players
 
-buyCard : String -> Country3 -> Game -> Game
+buyCard : PlayerName -> Country3 -> Game -> Game
 buyCard playerName country g@(MkGame b@(MkBoard3 xs) players) =
   let remainingCards = lookup country xs
-      player = findPlayer playerName players
+      playerStuff = lookup playerName players
   in
-  case (player, remainingCards) of
+  case (playerStuff, remainingCards) of
        (Nothing, _) => g
        (_, Nothing) => g
        (_, (Just 0)) => g
-       (Just pl, (Just (S k))) =>
+       (Just ps, (Just (S k))) =>
           let newBoard = boardSell (country, (S k)) k country b
-              newPlayer = playerBuy 5 country pl
+              newPlayerStuff = playerBuy 5 country ps
           in
-              MkGame newBoard $ replacePlayer newPlayer players
+              MkGame newBoard $ replaceOn (playerName, ps) (playerName, newPlayerStuff) players
 where
-  playerBuy : Nat -> Country3 -> Player -> Player
-  playerBuy n c (MkPlayer x k ys) =
-    MkPlayer x (minus k n) (c :: ys)
+  playerBuy : Nat -> Country3 -> PlayerStuff -> PlayerStuff
+  playerBuy k x ps@(MkPlayerStuff j ys) =
+    case k < j of
+         False => ps
+         True => MkPlayerStuff (minus j k) (x :: ys)
 
   boardSell : (Country3, Nat) -> Nat -> Country3 -> Board3 -> Board3
   boardSell current newBalance country (MkBoard3 ys) =
     let new = (country, newBalance) in
     MkBoard3 $ replaceOn current new ys
-
-  findPlayer : String -> List Player -> Maybe Player
-  findPlayer _ [] = Nothing
-  findPlayer playerName (b@(MkPlayer y _ _) :: xs) =
-    case playerName == y of
-         False => findPlayer playerName xs
-         True => Just b
-
-  replacePlayer : Player -> List Player -> List Player
-  replacePlayer _ [] = []
-  replacePlayer a@(MkPlayer x _ _) (b@(MkPlayer y _ _) :: xs) =
-    case x == y of
-         False => b :: replacePlayer a xs
-         True => a :: xs
 
 main : IO ()
 main = do
