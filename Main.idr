@@ -183,19 +183,23 @@ where
            (_, True) => (x :: xs)
            (_, False) => go target xs
 
-middleSquare : Nat -> Nat
-middleSquare k =
-  let origLength = length (the String $ cast k)
-      sq = k * k
+middleSquare : Nat -> Nat -> Nat
+middleSquare origLength k =
+  let sq = k * k
       str = the String (cast sq)
       ls = unpack str
   in cast $ pack $ dropTill origLength ls
 
 xRandoms : Nat -> Nat -> List Nat
-xRandoms seed 0 = [seed]
-xRandoms seed (S k) =
-  let new = middleSquare seed in
-    seed :: xRandoms new k
+xRandoms seed k =
+  let origLength = length (the String $ cast seed) in
+    go origLength seed k
+where
+  go : Nat -> Nat -> Nat -> List Nat
+  go origLength seed 0 = [seed]
+  go origLength seed (S k) =
+    let new = (middleSquare origLength seed) in
+      seed :: go origLength new k
 
 main : IO ()
 main = do putStrLn $ show miniGame
