@@ -38,6 +38,10 @@ data Game = MkGame Board Players
 Show Game where
   show x = ?foo5
 
+data Action
+  = Buy PlayerName Country
+  | Sell PlayerName Country
+
 validPrices : List Nat
 validPrices = [5, 10, 30, 50, 80, 90, 100]
 
@@ -104,8 +108,8 @@ where
     MkBoard $ insert country newBalance ys
 
 -- checks
--- player exists
--- country exists
+-- playerExists
+-- countryExists
 -- player has enough cards
 sellCard : PlayerName -> Country -> Game -> Game
 sellCard playerName country g@(MkGame b@(MkBoard xs) players) =
@@ -144,6 +148,26 @@ where
     MkBoard $ insert country newBalance ys
 
       -- mPrice = sellPrice validPrices !remainingCards in
+
+playerExists : PlayerName -> Game -> Either String PlayerStuff
+playerExists x (MkGame _ players) =
+  case lookup x players of
+       Nothing => Left "Player \{show x} not in game"
+       (Just ps) => pure ps
+
+countryExists : Country -> Game -> Either String Nat
+countryExists x (MkGame (MkBoard countries) players) =
+  case lookup x countries of
+       Nothing => Left "Country \{show x} not in game"
+       (Just cardsRemaining) => pure cardsRemaining
+
+playerHasEnoughCards : Country -> PlayerStuff -> Either String ()
+playerHasEnoughCards x (MkPlayerStuff k xs) =
+  ?playerHasEnoughCards_rhs_0
+
+sellCard2 : PlayerName -> Country -> Game
+          -> Either String Game
+sellCard2 x y z = ?sellCard2_rhs
 
 aBuyMove : Game -> Game
 aBuyMove = buyCard (MkPlayerName "player A") (MkCountry "hungary")
