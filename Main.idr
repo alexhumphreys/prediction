@@ -1,6 +1,7 @@
 module Main
 import Data.Fin
 import Data.List
+import Data.List1
 import Data.List.Elem
 import Data.SortedMap
 
@@ -24,7 +25,7 @@ Show PlayerName where
 Ord PlayerName where
   (<) (MkPlayerName x) (MkPlayerName y) = x < y
 
-data PlayerStuff = MkPlayerStuff Nat (List Country)
+data PlayerStuff = MkPlayerStuff Nat (List Country) -- TODO also sorted map?
 Eq PlayerStuff where
   (==) (MkPlayerStuff x w) (MkPlayerStuff y z) = x == y && w == z
 Show PlayerStuff where
@@ -152,11 +153,9 @@ aSellMove = sellCard (MkPlayerName "player A") (MkCountry "hungary")
 
 miniGame : Game
 miniGame =
-  let t1 = aBuyMove game
-      t2 = aBuyMove t1
-      t3 = aBuyMove t2
-      t4 = aSellMove t3
-  in t3
+  let moves = aBuyMove :::
+    [aBuyMove, aSellMove, aSellMove]
+  in foldl1 (.) moves game
 
 main : IO ()
 main = do putStrLn $ show miniGame
