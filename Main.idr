@@ -70,6 +70,12 @@ where
   go (x :: xs) 0 = Just x
   go (x :: xs) (S k) = go xs k
 
+buyPrice2 : List Nat -> Nat -> Either String Nat
+buyPrice2 xs x =
+  case buyPrice xs x of
+       Nothing => Left "No buy price available"
+       Just n => pure n
+
 board : Board
 board = MkBoard $ fromList [(MkCountry "canada", 7), (MkCountry "hungary", 7)]
 
@@ -167,6 +173,21 @@ countryExists x (MkGame (MkBoard countries) _) =
        Nothing => Left "Country \{show x} not in game"
        (Just cardsRemaining) => pure cardsRemaining
 
+playerHasEnoughFunds : Nat -> PlayerStuff -> Either String ()
+playerHasEnoughFunds price (MkPlayerStuff k _) =
+  case k > price of
+       True => pure ()
+       False => Left "Player does not have enough cash"
+
+boardHasEnoughCards : Country -> Board -> Either String Nat
+boardHasEnoughCards x (MkBoard cs) =
+  let errorMsg = Left "Board does not have any country \{show x}"
+  in
+  case lookup x cs of
+       Nothing => errorMsg
+       (Just 0) => errorMsg
+       (Just leftOnBoard@(S j)) => pure leftOnBoard
+
 playerHasEnoughCards : Country -> PlayerStuff -> Either String Nat
 playerHasEnoughCards x (MkPlayerStuff k xs) =
   let errorMsg = Left "Player does not have any country \{show x}"
@@ -193,6 +214,26 @@ takeCard = adjustPlayerCards Substract
 giveCard : Country -> SortedMap Country Nat -> SortedMap Country Nat
 giveCard = adjustPlayerCards Add
 
+buyCard2 : PlayerName -> Country -> Game
+          -> Either String Game
+buyCard2 pn c g@(MkGame b@(MkBoard bs) pl) = do
+  ps <- playerExists pn g
+  cardsRemaining <- countryExists c g
+  _ <- boardHasEnoughCards c b
+  curPrice <- buyPrice2 validPrices cardsRemaining
+  playerHasEnoughFunds curPrice ps
+  pure $ doBuy curPrice c ps g
+where
+  -- take money from player
+  -- give card to player
+  -- take card from board
+  doBuy : Nat -> Country -> PlayerStuff -> Game -> Game
+  doBuy price x (MkPlayerStuff k cs) (MkGame (MkBoard b) w) =
+    let newPlayerStuff = MkPlayerStuff (minus k price) $ giveCard c cs
+        newBoard = MkBoard $ takeCard c b
+    in
+    MkGame newBoard $ insert pn newPlayerStuff pl
+
 sellCard2 : PlayerName -> Country -> Game
           -> Either String Game
 sellCard2 pn c g = do
@@ -202,11 +243,11 @@ sellCard2 pn c g = do
   playerCards <- playerHasEnoughCards c ps
   pure $ doSale curPrice c ps g
 where
-  -- take card from player
   -- give money to player
+  -- take card from player
   -- give card to board
   doSale : Nat -> Country -> PlayerStuff -> Game -> Game
-  doSale price c ps@(MkPlayerStuff k cs) (MkGame cur@(MkBoard b) pl) =
+  doSale price c ps@(MkPlayerStuff k cs) (MkGame (MkBoard b) pl) =
     let newPlayerStuff = MkPlayerStuff (k + price) $ takeCard c cs
         newBoard = MkBoard $ giveCard c b
     in
@@ -218,11 +259,23 @@ aBuyMove = buyCard (MkPlayerName "player A") (MkCountry "hungary")
 aSellMove : Game -> Game
 aSellMove = sellCard (MkPlayerName "player A") (MkCountry "hungary")
 
+buy2 : Game -> Either String Game
+buy2 = buyCard2 (MkPlayerName "player A") (MkCountry "hungary")
+
+sell2 : Game -> Either String Game
+sell2 = sellCard2 (MkPlayerName "player A") (MkCountry "hungary")
+
 miniGame : Game
 miniGame =
   let moves = id :::
     [aBuyMove, aBuyMove, aSellMove, aSellMove]
   in foldl1 (.) moves game
+
+miniGame2 : Either String Game
+miniGame2 =
+  let moves =
+    [buy2, buy2, sell2]
+  in foldlM {m=Either String} (\a,fun => fun a) game moves
 
 main : IO ()
 main = do putStrLn $ show miniGame
