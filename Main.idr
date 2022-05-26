@@ -153,8 +153,8 @@ aSellMove = sellCard (MkPlayerName "player A") (MkCountry "hungary")
 
 miniGame : Game
 miniGame =
-  let moves = aBuyMove :::
-    [aBuyMove, aSellMove, aSellMove]
+  let moves = id :::
+    [aBuyMove, aBuyMove, aSellMove, aSellMove]
   in foldl1 (.) moves game
 
 main : IO ()
