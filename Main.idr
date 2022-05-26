@@ -2,6 +2,7 @@ module Main
 import Data.Fin
 import Data.List
 import Data.List.Elem
+import Data.List.Views.Extra
 
 data Country = MkCountry String
 Eq Country where
@@ -154,6 +155,47 @@ miniGame =
       t3 = aBuyMove t2
       t4 = aSellMove t3
   in t4
+
+getMiddle : List a -> Nat -> List a
+getMiddle xs k with (vList xs)
+  getMiddle [] k | VNil = []
+  getMiddle [x] 0 | VOne = [x]
+  getMiddle [x] (S k) | VOne = getMiddle [x] k
+  getMiddle w@(x :: (xs ++ [y])) 0 | (VCons rec) = w
+  getMiddle (x :: (xs ++ [y])) (S k) | (VCons rec) =
+    getMiddle xs k
+
+dropTill : Nat -> List a -> List a
+dropTill x xs =
+  case x >= length xs of
+       True => xs
+       False => go x xs
+where
+  go : Nat -> List a -> List a
+  go target ls with (vList ls)
+    go target [] | VNil = []
+    go 0 [x] | VOne = []
+    go (S k) [x] | VOne = [x]
+    go target w@(x :: (xs ++ [y])) | (VCons rec) =
+      let l = length xs in
+      case (target == S (S l), target == S l) of
+           (True, _) => w
+           (_, True) => (x :: xs)
+           (_, False) => go target xs
+
+middleSquare : Nat -> Nat
+middleSquare k =
+  let origLength = length (the String $ cast k)
+      sq = k * k
+      str = the String (cast sq)
+      ls = unpack str
+  in cast $ pack $ dropTill origLength ls
+
+xRandoms : Nat -> Nat -> List Nat
+xRandoms seed 0 = [seed]
+xRandoms seed (S k) =
+  let new = middleSquare seed in
+    seed :: xRandoms new k
 
 main : IO ()
 main = do putStrLn $ show miniGame
