@@ -25,7 +25,7 @@ Show PlayerName where
 Ord PlayerName where
   (<) (MkPlayerName x) (MkPlayerName y) = x < y
 
-data PlayerStuff = MkPlayerStuff Nat (List Country) -- TODO also sorted map?
+data PlayerStuff = MkPlayerStuff Nat (SortedMap Country Nat)
 Eq PlayerStuff where
   (==) (MkPlayerStuff x w) (MkPlayerStuff y z) = x == y && w == z
 Show PlayerStuff where
@@ -44,6 +44,14 @@ data Action
 
 validPrices : List Nat
 validPrices = [5, 10, 30, 50, 80, 90, 100]
+
+sellPrice2 : List Nat -> Nat -> Either String Nat
+sellPrice2 xs k = go (reverse xs) k
+where
+  go : List Nat -> Nat -> Either String Nat
+  go [] k = Left "No sell price available"
+  go (x :: xs) 0 = pure x
+  go (x :: xs) (S k) = go xs k
 
 sellPrice : List Nat -> Nat -> Maybe Nat
 sellPrice xs k = go (reverse xs) k
@@ -67,8 +75,8 @@ board = MkBoard $ fromList [(MkCountry "canada", 7), (MkCountry "hungary", 7)]
 
 players : Players
 players = fromList
-  [ ((MkPlayerName "player A"), (MkPlayerStuff 100 []))
-  , ((MkPlayerName "player B"), (MkPlayerStuff 100 []))]
+  [ ((MkPlayerName "player A"), (MkPlayerStuff 100 $ fromList []))
+  , ((MkPlayerName "player B"), (MkPlayerStuff 100 $ fromList []))]
 
 game : Game
 game = MkGame board players
@@ -101,7 +109,7 @@ where
   playerBuy k x ps@(MkPlayerStuff j ys) =
     case k < j of
          False => ps
-         True => MkPlayerStuff (minus j k) (x :: ys)
+         True => MkPlayerStuff (minus j k) $ mergeWith (+) ys $ fromList [(x, 1)]
 
   boardSell : Nat -> Country -> Board -> Board
   boardSell newBalance country (MkBoard ys) =
@@ -139,9 +147,7 @@ where
 
   playerSell : Nat -> Country -> PlayerStuff -> PlayerStuff
   playerSell k x ps@(MkPlayerStuff j ys) =
-    case findFirst x ys of
-         Nothing => ps
-         (Just y) => MkPlayerStuff (k + j) $ deleteFirstsBy (==) ys [x]
+    MkPlayerStuff (k + j) $ mergeWith (minus) ys $ fromList [(x, 1)]
 
   boardBuy : Nat -> Country -> Board -> Board
   boardBuy newBalance country (MkBoard ys) =
@@ -156,18 +162,55 @@ playerExists x (MkGame _ players) =
        (Just ps) => pure ps
 
 countryExists : Country -> Game -> Either String Nat
-countryExists x (MkGame (MkBoard countries) players) =
+countryExists x (MkGame (MkBoard countries) _) =
   case lookup x countries of
        Nothing => Left "Country \{show x} not in game"
        (Just cardsRemaining) => pure cardsRemaining
 
-playerHasEnoughCards : Country -> PlayerStuff -> Either String ()
+playerHasEnoughCards : Country -> PlayerStuff -> Either String Nat
 playerHasEnoughCards x (MkPlayerStuff k xs) =
-  ?playerHasEnoughCards_rhs_0
+  let errorMsg = Left "Player does not have any country \{show x}"
+  in
+  case lookup x xs of
+       Nothing => errorMsg
+       (Just 0) => errorMsg
+       (Just playerOwned@(S j)) => pure playerOwned
+
+data Increment = Add | Substract
+
+adjustPlayerCards : Increment -> Country -> SortedMap Country Nat -> SortedMap Country Nat
+adjustPlayerCards i x cs =
+  case i of
+       Add => go (+)
+       Substract => go (minus)
+where
+  go : (Nat -> Nat -> Nat) -> SortedMap Country Nat
+  go fun = mergeWith fun cs $ fromList [(x, 1)]
+
+takeCard : Country -> SortedMap Country Nat -> SortedMap Country Nat
+takeCard = adjustPlayerCards Substract
+
+giveCard : Country -> SortedMap Country Nat -> SortedMap Country Nat
+giveCard = adjustPlayerCards Add
 
 sellCard2 : PlayerName -> Country -> Game
           -> Either String Game
-sellCard2 x y z = ?sellCard2_rhs
+sellCard2 pn c g = do
+  ps <- playerExists pn g
+  cardsRemaining <- countryExists c g
+  curPrice <- sellPrice2 validPrices cardsRemaining
+  playerCards <- playerHasEnoughCards c ps
+  pure $ doSale curPrice c ps g
+where
+  -- take card from player
+  -- give money to player
+  -- give card to board
+  doSale : Nat -> Country -> PlayerStuff -> Game -> Game
+  doSale price c ps@(MkPlayerStuff k cs) (MkGame cur@(MkBoard b) pl) =
+    let newPlayerStuff = MkPlayerStuff (k + price) $ takeCard c cs
+        newBoard = MkBoard $ giveCard c b
+    in
+    MkGame newBoard $ insert pn newPlayerStuff pl
 
 aBuyMove : Game -> Game
 aBuyMove = buyCard (MkPlayerName "player A") (MkCountry "hungary")
