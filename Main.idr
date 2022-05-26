@@ -2,15 +2,17 @@ module Main
 import Data.Fin
 import Data.List
 import Data.List.Elem
-import Data.List.Views.Extra
+import Data.SortedMap
 
 data Country = MkCountry String
 Eq Country where
   (==) (MkCountry x) (MkCountry y) = x == y
 Show Country where
   show x = ?foo1
+Ord Country where
+  (<) (MkCountry x) (MkCountry y) = x < y
 
-data Board = MkBoard (List (Country, Nat))
+data Board = MkBoard (SortedMap Country Nat)
 Show Board where
   show x = ?foo2
 
@@ -19,6 +21,8 @@ Eq PlayerName where
   (==) (MkPlayerName x) (MkPlayerName y) = x == y
 Show PlayerName where
   show x = ?foo3
+Ord PlayerName where
+  (<) (MkPlayerName x) (MkPlayerName y) = x < y
 
 data PlayerStuff = MkPlayerStuff Nat (List Country)
 Eq PlayerStuff where
@@ -27,7 +31,7 @@ Show PlayerStuff where
   show x = ?foo4
 
 Players : Type
-Players = (List (PlayerName, PlayerStuff))
+Players = SortedMap PlayerName PlayerStuff
 
 data Game = MkGame Board Players
 Show Game where
@@ -54,10 +58,10 @@ where
   go (x :: xs) (S k) = go xs k
 
 board : Board
-board = MkBoard [(MkCountry "canada", 7), (MkCountry "hungary", 7)]
+board = MkBoard $ fromList [(MkCountry "canada", 7), (MkCountry "hungary", 7)]
 
 players : Players
-players =
+players = fromList
   [ ((MkPlayerName "player A"), (MkPlayerStuff 100 []))
   , ((MkPlayerName "player B"), (MkPlayerStuff 100 []))]
 
@@ -79,14 +83,14 @@ buyCard playerName country g@(MkGame b@(MkBoard xs) players) =
        (_, Nothing) => g
        (_, (Just 0)) => g
        (Just ps, (Just p@(S k))) =>
-          let newBoard = boardSell (country, p) k country b
+          let newBoard = boardSell k country b
               mPrice = buyPrice validPrices p
               newPlayerStuff = case mPrice of
                                     Nothing => ps
                                     (Just price) => playerBuy price country ps
 
           in
-              MkGame newBoard $ replaceOn (playerName, ps) (playerName, newPlayerStuff) players
+              MkGame newBoard $ insert playerName newPlayerStuff players
 where
   playerBuy : Nat -> Country -> PlayerStuff -> PlayerStuff
   playerBuy k x ps@(MkPlayerStuff j ys) =
@@ -94,10 +98,9 @@ where
          False => ps
          True => MkPlayerStuff (minus j k) (x :: ys)
 
-  boardSell : (Country, Nat) -> Nat -> Country -> Board -> Board
-  boardSell current newBalance country (MkBoard ys) =
-    let new = (country, newBalance) in
-    MkBoard $ replaceOn current new ys
+  boardSell : Nat -> Country -> Board -> Board
+  boardSell newBalance country (MkBoard ys) =
+    MkBoard $ insert country newBalance ys
 
 -- checks
 -- player exists
@@ -112,7 +115,7 @@ sellCard playerName country g@(MkGame b@(MkBoard xs) players) =
        (Nothing, _) => g
        (_, Nothing) => g
        ((Just ps), (Just rc)) =>
-          let newBoard = boardBuy (country, rc) (S rc) country b
+          let newBoard = boardBuy (S rc) country b
               mPrice = sellPrice validPrices rc
               newPlayerStuff : PlayerStuff = case mPrice of
                                     Nothing => ps
@@ -120,7 +123,7 @@ sellCard playerName country g@(MkGame b@(MkBoard xs) players) =
                                       playerSell price country ps
 
           in
-          MkGame newBoard $ replaceOn (playerName, ps) (playerName, newPlayerStuff) players
+          MkGame newBoard $ insert playerName newPlayerStuff players
 where
   findFirst : Eq a => a -> List a -> Maybe a
   findFirst x [] = Nothing
@@ -135,10 +138,9 @@ where
          Nothing => ps
          (Just y) => MkPlayerStuff (k + j) $ deleteFirstsBy (==) ys [x]
 
-  boardBuy : (Country, Nat) -> Nat -> Country -> Board -> Board
-  boardBuy current newBalance country (MkBoard ys) =
-    let new = (country, newBalance) in
-    MkBoard $ replaceOn current new ys
+  boardBuy : Nat -> Country -> Board -> Board
+  boardBuy newBalance country (MkBoard ys) =
+    MkBoard $ insert country newBalance ys
 
       -- mPrice = sellPrice validPrices !remainingCards in
 
@@ -154,7 +156,7 @@ miniGame =
       t2 = aBuyMove t1
       t3 = aBuyMove t2
       t4 = aSellMove t3
-  in t4
+  in t3
 
 main : IO ()
 main = do putStrLn $ show miniGame
