@@ -1,8 +1,4 @@
 module Main
-import Data.Fin
-import Data.List
-import Data.List1
-import Data.List.Elem
 import Data.SortedMap
 
 data Country = MkCountry String
