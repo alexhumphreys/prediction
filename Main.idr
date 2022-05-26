@@ -58,17 +58,6 @@ where
   go (x :: xs) 0 = pure x
   go (x :: xs) (S k) = go xs k
 
-board : Board
-board = MkBoard $ fromList [(MkCountry "canada", 7), (MkCountry "hungary", 7)]
-
-players : Players
-players = fromList
-  [ ((MkPlayerName "player A"), (MkPlayerStuff 100 $ fromList []))
-  , ((MkPlayerName "player B"), (MkPlayerStuff 100 $ fromList []))]
-
-game : Game
-game = MkGame board players
-
 playerExists : PlayerName -> Game -> Either String PlayerStuff
 playerExists x (MkGame _ players) =
   case lookup x players of
@@ -166,6 +155,17 @@ buy = buyCard (MkPlayerName "player A") (MkCountry "hungary")
 
 sell : Game -> Either String Game
 sell = sellCard (MkPlayerName "player A") (MkCountry "hungary")
+
+board : Board
+board = MkBoard $ fromList [(MkCountry "canada", 7), (MkCountry "hungary", 7)]
+
+players : Players
+players = fromList
+  [ ((MkPlayerName "player A"), (MkPlayerStuff 100 $ fromList []))
+  , ((MkPlayerName "player B"), (MkPlayerStuff 100 $ fromList []))]
+
+game : Game
+game = MkGame board players
 
 minigame : Either String Game
 minigame =
