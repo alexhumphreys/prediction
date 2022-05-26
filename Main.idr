@@ -71,9 +71,13 @@ buyCard playerName country g@(MkGame b@(MkBoard xs) players) =
        (Nothing, _) => g
        (_, Nothing) => g
        (_, (Just 0)) => g
-       (Just ps, (Just (S k))) =>
+       (Just ps, (Just p@(S k))) =>
           let newBoard = boardSell (country, (S k)) k country b
-              newPlayerStuff = playerBuy 5 country ps
+              mPrice = buyPrice validPrices p
+              newPlayerStuff = case mPrice of
+                                    Nothing => ps
+                                    (Just price) => playerBuy price country ps
+
           in
               MkGame newBoard $ replaceOn (playerName, ps) (playerName, newPlayerStuff) players
 where
@@ -88,8 +92,15 @@ where
     let new = (country, newBalance) in
     MkBoard $ replaceOn current new ys
 
-aMove : Game
-aMove = buyCard (MkPlayerName "player A") (MkCountry "hungary") game
+aMove : Game -> Game
+aMove = buyCard (MkPlayerName "player A") (MkCountry "hungary")
+
+miniGame : Game
+miniGame =
+  let t1 = aMove game
+      t2 = aMove t1
+      t3 = aMove t2
+  in t3
 
 main : IO ()
-main = do putStrLn $ show aMove
+main = do putStrLn $ show miniGame
