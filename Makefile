@@ -5,7 +5,7 @@ clean:
 	rm -r ./build
 
 repl-spa:
-	rlwrap -n pack --with-ipkg ./src/Frontend/frontend.ipkg --cg javascript repl ./src/Frontend/Main.idr
+	rlwrap -n pack --with-ipkg ./src/Frontend/config.ipkg --cg javascript repl ./src/Frontend/Main.idr
 
 spa:
 	pack build ./src/Frontend/config.ipkg
@@ -14,3 +14,6 @@ spa:
 
 open-frontend:
 	open ./static/index.html
+
+json-server:
+	json-server --watch ./db.json

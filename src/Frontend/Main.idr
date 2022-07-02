@@ -8,17 +8,6 @@ import JSON
 
 %default total
 
-{-
-{
-	"0": {
-		"userId": 1,
-		"id": 1,
-		"title": "delectus aut autem",
-		"completed": false
-	}
-}
--}
-
 %language ElabReflection
 
 record FetchResponse where
@@ -40,9 +29,19 @@ record Todo where
 
 %runElab derive "Todo" [Generic, Meta, Show, Eq, RecordToJSON, RecordFromJSON]
 
+record Move where
+  constructor MkMove
+  id : Nat
+  cardId : Nat
+  gameId : Nat
+  participantId : Nat
+  type : String
+  state : String
+
+%runElab derive "Move" [Generic, Meta, Show, Eq, RecordToJSON, RecordFromJSON]
+
 -- I set a timeout once the request has been received to make
 -- it clearer how the UI behaves until then.
--- TODO should pass an "on error" function here, then have a function print that output
 %foreign """
 browser:lambda:(url,h,w,e,y)=>{
   fetch(url)
@@ -153,6 +152,9 @@ data Ev' : Type where
   ListLoaded : List Todo -> Ev'
 
   ||| An ajax call returned a list of todos
+  MovesLoaded : List Move -> Ev'
+
+  ||| An ajax call returned a list of todos
   SingleLoaded : Todo -> Ev'
 
   ||| An ajax call returned a user
@@ -220,6 +222,7 @@ where
 onInit : MSF M' (NP I []) ()
 onInit = arrM $ \_ => do
   fetchParseEvent {a=List Todo} "https://jsonplaceholder.typicode.com/todos" ListLoaded
+  fetchParseEvent {a=List Move} "http://localhost:3000/moves" MovesLoaded
 -- invoke `get` with the correct URL
 
 -- prints the list to the UI.
@@ -228,6 +231,23 @@ onListLoaded : MSF M' (NP I [List Todo]) ()
 onListLoaded = do
   arrM $ \[ts] => do
     innerHtmlAt listTodoDiv $ listTodos' $ take 21 ts
+
+renderJson : ToJSON x => x -> Node Ev'
+renderJson y = let json = encode y in
+  div []
+    [Text json]
+
+renderListJson : ToJSON x => List x -> Node Ev'
+renderListJson y = let ls = map encode y in
+  div [] $ map Text ls
+
+listMoveDiv : ElemRef HTMLDivElement
+listMoveDiv = Id Div "\{aPrefix}_listMove"
+
+onMovesLoaded : MSF M' (NP I [List Move]) ()
+onMovesLoaded = do
+  arrM $ \[ms] => do
+    innerHtmlAt listMoveDiv $ renderJson ms
 
 onUserLoaded : MSF M' (NP I [User]) ()
 onUserLoaded = arrM $ (\[u] => innerHtmlAt userDiv $ renderUser u)
@@ -299,6 +319,7 @@ where
 sf : MSF M' Ev' ()
 sf = toI . unSOP . from ^>> collect [ onInit
                                     , onListLoaded
+                                    , onMovesLoaded
                                     , onSingleLoaded
                                     , onUserLoaded
                                     , onSelected
@@ -312,6 +333,7 @@ content' =
     [ div [] ["content2"]
     , div [ref out] []
     , div [ref errorDiv] []
+    , div [ref listMoveDiv] []
     , div [ref listTodoDiv] []
     , div [ref selectedTodoDiv] []
     , div [ref createTodoDiv] []
