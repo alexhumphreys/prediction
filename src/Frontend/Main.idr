@@ -141,6 +141,9 @@ out = Id Div "\{aPrefix}_out"
 errorDiv : ElemRef HTMLDivElement
 errorDiv = Id Div "\{aPrefix}_errorDiv"
 
+infoDiv : ElemRef HTMLDivElement
+infoDiv = Id Div "\{aPrefix}_infoDiv"
+
 listTodoDiv : ElemRef HTMLDivElement
 listTodoDiv = Id Div "\{aPrefix}_listTodo"
 
@@ -207,9 +210,12 @@ data Ev' : Type where
 
   ||| A single item in the todo list was selected
   ClickAdd' : Ev'
+  ClickBuy : Nat -> Ev'
+  ClickSell : Nat -> Ev'
 
   ||| Error
   Err' : String -> Ev'
+  Info : String -> Ev'
 
 %runElab derive "Ev'" [Generic]
 
@@ -306,8 +312,48 @@ gameDiv = Id Div "\{aPrefix}_game"
 
 onGameLoaded : MSF M' (NP I [Game]) ()
 onGameLoaded = do
-  arrM $ \[ms] => do
-    innerHtmlAt gameDiv $ renderJson ms
+  arrM $ \[game] => do
+    innerHtmlAt gameDiv gameContainer
+    innerHtmlAt boardDiv $ renderBoard $ board game
+    innerHtmlAt participantsDiv' $ renderParticipants $ participants game
+    innerHtmlAt cardsDiv $ renderCards $ cards $ board game
+where
+  boardDiv : ElemRef HTMLDivElement
+  boardDiv = Id Div "\{aPrefix}_board"
+  participantsDiv' : ElemRef HTMLDivElement
+  participantsDiv' = Id Div "\{aPrefix}_participants"
+  cardsDiv : ElemRef HTMLDivElement
+  cardsDiv = Id Div "\{aPrefix}_cards"
+  gameContainer : Node Ev'
+  gameContainer =
+    div []
+      [ div [ref boardDiv] []
+      , div [ref participantsDiv'] []
+      ]
+  renderBoard : Board -> Node Ev'
+  renderBoard x =
+    div []
+      [ div [ref cardsDiv] []
+      ]
+  btnBuy : Nat -> ElemRef HTMLButtonElement
+  btnBuy n = Id Button "\{aPrefix}_buyCard\{show n}"
+  btnSell : Nat -> ElemRef HTMLButtonElement
+  btnSell n = Id Button "\{aPrefix}_sellCard\{show n}"
+  renderCard : BoardCard -> Node Ev'
+  renderCard (MkBoardCard id description remaining) =
+    div []
+      [ div [] [Text $ show $ id]
+      , div [] [Text description]
+      , div [] [Text $ show remaining]
+    --, button [ref btnRun, onClick Run, classes [widget,btn]] ["Run"]
+      , button [ref $ btnBuy id, onClick (ClickBuy id)] ["Buy"]
+      , button [ref $ btnSell id, onClick (ClickSell id)] ["Sell"]
+      ]
+  renderCards : List BoardCard -> Node Ev'
+  renderCards ls =
+    div [] $ map renderCard ls
+  renderParticipants : List Participant -> Node Ev'
+  renderParticipants x = div [] [Text $ show x]
 
 onUserLoaded : MSF M' (NP I [User]) ()
 onUserLoaded = arrM $ (\[u] => innerHtmlAt userDiv $ renderUser u)
@@ -340,6 +386,12 @@ where
   renderErr' : String -> Node Ev'
   renderErr' x = div [] [Text x]
 -- onErr = arrM $ \[s] => -- print error message to a UI element
+
+onInfo : MSF M' (NP I [String]) ()
+onInfo = arrM $ \[s] => innerHtmlAt errorDiv $ renderInfo s
+where
+  renderInfo : String -> Node Ev'
+  renderInfo x = div [] [Text x]
 
 {-
 div [ class ballsContent ]
@@ -375,6 +427,11 @@ where
       , button [ref btnCreate] ["Create Todo"]
       ]
 -- invoke `get` with the correct URL
+onClickBuy : MSF M' (NP I [Nat]) ()
+onClickBuy = arrM $ \n => fireEv (Info "Buy clicked! id: \{show n}")
+
+onClickSell : MSF M' (NP I [Nat]) ()
+onClickSell = arrM $ \n => fireEv (Info "Sell clicked! id: \{show n}")
 
 sf : MSF M' Ev' ()
 sf = toI . unSOP . from ^>> collect [ onInit
@@ -386,7 +443,10 @@ sf = toI . unSOP . from ^>> collect [ onInit
                                     , onUserLoaded
                                     , onSelected
                                     , onClickAdd
+                                    , onClickBuy
+                                    , onClickSell
                                     , onErr
+                                    , onInfo
                                     ]
 
 content' : Node Ev'
@@ -395,6 +455,7 @@ content' =
     [ div [] ["content2"]
     , div [ref out] []
     , div [ref errorDiv] []
+    , div [ref infoDiv] []
     , div [ref listMoveDiv] []
     , div [ref listParticipantDiv] []
     , div [ref gameDiv] []
