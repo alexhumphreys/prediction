@@ -29,6 +29,23 @@ record Todo where
 
 %runElab derive "Todo" [Generic, Meta, Show, Eq, RecordToJSON, RecordFromJSON]
 
+record ParticipantCard where
+  constructor MkParticipantCard
+  id : Nat
+  description : String
+  remaining : Nat
+
+%runElab derive "ParticipantCard" [Generic, Meta, Show, Eq, RecordToJSON, RecordFromJSON]
+
+record Participant where
+  constructor MkParticpant
+  id : Nat
+  name : String
+  money : Nat
+  cards : List ParticipantCard
+
+%runElab derive "Participant" [Generic, Meta, Show, Eq, RecordToJSON, RecordFromJSON]
+
 record Move where
   constructor MkMove
   id : Nat
@@ -39,6 +56,30 @@ record Move where
   state : String
 
 %runElab derive "Move" [Generic, Meta, Show, Eq, RecordToJSON, RecordFromJSON]
+
+record BoardCard where
+  constructor MkBoardCard
+  id : Nat
+  description : String
+  remaining : Nat
+
+%runElab derive "BoardCard" [Generic, Meta, Show, Eq, RecordToJSON, RecordFromJSON]
+
+record Board where
+  constructor MkBoard
+  id : Nat
+  cards : List BoardCard
+
+%runElab derive "Board" [Generic, Meta, Show, Eq, RecordToJSON, RecordFromJSON]
+
+record Game where
+  constructor MkGame
+  id : Nat
+  participantStartedId : Nat
+  board : Board
+  participants : List Participant
+
+%runElab derive "Game" [Generic, Meta, Show, Eq, RecordToJSON, RecordFromJSON]
 
 -- I set a timeout once the request has been received to make
 -- it clearer how the UI behaves until then.
@@ -151,8 +192,9 @@ data Ev' : Type where
   ||| An ajax call returned a list of todos
   ListLoaded : List Todo -> Ev'
 
-  ||| An ajax call returned a list of todos
   MovesLoaded : List Move -> Ev'
+  ParticipantsLoaded : List Participant -> Ev'
+  GameLoaded : Game -> Ev'
 
   ||| An ajax call returned a list of todos
   SingleLoaded : Todo -> Ev'
@@ -223,6 +265,8 @@ onInit : MSF M' (NP I []) ()
 onInit = arrM $ \_ => do
   fetchParseEvent {a=List Todo} "https://jsonplaceholder.typicode.com/todos" ListLoaded
   fetchParseEvent {a=List Move} "http://localhost:3000/moves" MovesLoaded
+  -- fetchParseEvent {a=List Participant} "http://localhost:3000/participants" ParticipantsLoaded
+  fetchParseEvent {a=Game} "http://localhost:3000/games/1" GameLoaded
 -- invoke `get` with the correct URL
 
 -- prints the list to the UI.
@@ -248,6 +292,22 @@ onMovesLoaded : MSF M' (NP I [List Move]) ()
 onMovesLoaded = do
   arrM $ \[ms] => do
     innerHtmlAt listMoveDiv $ renderJson ms
+
+listParticipantDiv : ElemRef HTMLDivElement
+listParticipantDiv = Id Div "\{aPrefix}_listParticipant"
+
+onParticipantsLoaded : MSF M' (NP I [List Participant]) ()
+onParticipantsLoaded = do
+  arrM $ \[ms] => do
+    innerHtmlAt listParticipantDiv $ renderJson ms
+
+gameDiv : ElemRef HTMLDivElement
+gameDiv = Id Div "\{aPrefix}_game"
+
+onGameLoaded : MSF M' (NP I [Game]) ()
+onGameLoaded = do
+  arrM $ \[ms] => do
+    innerHtmlAt gameDiv $ renderJson ms
 
 onUserLoaded : MSF M' (NP I [User]) ()
 onUserLoaded = arrM $ (\[u] => innerHtmlAt userDiv $ renderUser u)
@@ -320,6 +380,8 @@ sf : MSF M' Ev' ()
 sf = toI . unSOP . from ^>> collect [ onInit
                                     , onListLoaded
                                     , onMovesLoaded
+                                    , onParticipantsLoaded
+                                    , onGameLoaded
                                     , onSingleLoaded
                                     , onUserLoaded
                                     , onSelected
@@ -334,6 +396,8 @@ content' =
     , div [ref out] []
     , div [ref errorDiv] []
     , div [ref listMoveDiv] []
+    , div [ref listParticipantDiv] []
+    , div [ref gameDiv] []
     , div [ref listTodoDiv] []
     , div [ref selectedTodoDiv] []
     , div [ref createTodoDiv] []

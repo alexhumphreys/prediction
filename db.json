@@ -1,67 +1,49 @@
 {
-  "wines": [
-    {
-      "id": 1,
-      "product": "SOMMELIER SELECT",
-      "desc": "Old vine Cabernet Sauvignon",
-      "price": 159.99
-    },
-    {
-      "id": 2,
-      "product": "MASTER VINTNER",
-      "desc": "Pinot Noir captures luscious aromas",
-      "price": 89.99
-    },
-    {
-      "id": 3,
-      "product": "WINEMAKER'S RESERVE",
-      "desc": "Merlot featuring complex flavors of cherry",
-      "price": 84.99
-    },
-    {
-      "desc": "Squeezed rapidly from a delicate, yet unpretentious grape",
-      "id": "5",
-      "price": "2.99",
-      "product": "TWO BUCK CHUCK"
-    }
-  ],
-  "comments": [
-    {
-      "id": 1,
-      "body": "like the added grape skins",
-      "wineId": 1
-    },
-    {
-      "id": 1,
-      "body": "the directions need to be clearer",
-      "wineId": 2
-    },
-    {
-      "id": 3,
-      "body": "I received 3 different packages of wood chips",
-      "wineId": 1
-    }
-  ],
-  "profile": {
-    "name": "vintnor"
-  },
   "games": [
     { "id": 1,
       "participantStartedId": 1,
       "board": {
-        "gameId": 1,
+        "id": 1,
         "cards": [
-          { "cardId": 1,
+          { "id": 1,
+            "description": "sweden",
             "remaining": 10
           },
-          { "cardId": 2,
+          { "id": 2,
+            "description": "hungary",
             "remaining": 10
           }
         ]
       },
       "participants": [
-        { "participantId": 1 },
-        { "participantId": 2 }
+        { "id": 1,
+          "name": "alice",
+          "money": 100,
+          "cards": [
+            { "id": 1,
+              "description": "sweden",
+              "remaining": 4
+            },
+            { "id": 2,
+              "description": "hungary",
+              "remaining": 2
+            }
+          ]
+        },
+        { "id": 2,
+          "name": "bob",
+          "money": 90,
+          "cards": [
+            { "id": 1,
+              "description": "sweden",
+              "remaining": 3
+            },
+            { "id": 2,
+              "description": "hungary",
+              "remaining": 5
+            }
+          ]
+        }
       ]
     }
   ],
@@ -92,7 +74,7 @@
     }
   ],
   "participants": [
-    { "participantId": 1,
+    { "id": 1,
       "gameId": 1,
       "name": "alice",
       "money": 100,
@@ -105,7 +87,7 @@
         }
       ]
     },
-    { "participantId": 1,
+    { "id": 1,
       "gameId": 1,
       "name": "bob",
       "money": 90,
