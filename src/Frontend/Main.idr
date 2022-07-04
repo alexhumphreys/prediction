@@ -81,6 +81,42 @@ record Game where
 
 %runElab derive "Game" [Generic, Meta, Show, Eq, RecordToJSON, RecordFromJSON]
 
+%foreign """
+browser:lambda:(url,body,h,w,e,y)=>{
+  fetch(url, {
+    method: 'POST',
+    body: body,
+    headers: {
+      'Content-Type': 'application/json'
+    }
+  }).then(response => {
+       if (!response.ok) {
+        w(JSON.stringify({
+          url: response.url,
+          status: response.status,
+          statusText: response.statusText,
+          redirected: response.redirected,
+          ok: response.ok,
+        }))(e);
+        throw new Error('Network response was not OK');
+       } else {
+         return response.json();
+       }
+    })
+    .then(json => {
+      h(JSON.stringify(json))(e);
+    })
+    .catch(error => {
+      w(error.message)(e)
+      console.error(error)
+    })
+}
+"""
+prim__fetchpost : String -> String -> (String -> IO ()) -> (String -> IO ()) -> PrimIO ()
+
+fetchPost : HasIO io => ToJSON x => String -> x -> (String -> JSIO ()) -> (String -> JSIO ()) -> io ()
+fetchPost url body run err = primIO $ prim__fetchpost url (encode body) (runJS . run) (runJS . err)
+
 -- I set a timeout once the request has been received to make
 -- it clearer how the UI behaves until then.
 %foreign """
@@ -247,23 +283,23 @@ fireEv' n ev = do
 fireEv : Ev' -> M' ()
 fireEv ev = fireEv' 0 ev
 
+handleError : String -> Ev'
+handleError str =
+  case decode {a=FetchResponse} str of
+       (Left x) =>  Err' "Fetch err: \{str}"
+       (Right x) => Err' "Fetch err: \{show x}"
+
+parseType : FromJSON a => String -> (a -> Ev') -> Ev'
+parseType str ev =
+  case decode {a=a} str of
+       (Left x) => Err' "failed to parse json: \{str}"
+       (Right x) => ev x
+
 fetchParseEvent : FromJSON a => String -> (a -> Ev') -> M' ()
 fetchParseEvent url ev = do
     h <- handler <$> env
-    fetch url (\s => h (parseType s)) (\e => h (handleError e))
+    fetch url (\s => h (parseType {a=a} s ev)) (\e => h (handleError e))
     pure ()
-where
-  handleError : String -> Ev'
-  handleError str =
-    case decode {a=FetchResponse} str of
-         (Left x) =>  Err' "Fetch err: \{str}"
-         (Right x) => Err' "Fetch err: \{show x}"
-
-  parseType : String -> Ev'
-  parseType str =
-    case decode {a=a} str of
-         (Left x) => Err' "failed to parse json: \{str}"
-         (Right x) => ev x
 
 -- below, I define some dummy MSFs for handling each of the
 -- events in question:
@@ -427,11 +463,34 @@ where
       , button [ref btnCreate] ["Create Todo"]
       ]
 -- invoke `get` with the correct URL
+
+-- cardId=1 gameId=1 participantId=1 type=buy state=processed
+record PostMove where
+  constructor MkPostMove
+  cardId : Nat
+  gameId : Nat
+  participantId : Nat
+  type : String
+  state : String
+
+%runElab derive "PostMove" [Generic, Meta, Show, Eq, RecordToJSON, RecordFromJSON]
+
+-- fetchParseEvent {a=List Move} "http://localhost:3000/moves" MovesLoaded
+postMove : ToJSON a => String -> a -> M' ()
+postMove url body = do
+    h <- handler <$> env
+    fetchPost url body (\s => h Init') (\e => h (handleError e))
+    pure ()
+
 onClickBuy : MSF M' (NP I [Nat]) ()
-onClickBuy = arrM $ \n => fireEv (Info "Buy clicked! id: \{show n}")
+onClickBuy = arrM $ \[n] => do
+  postMove "http://localhost:3000/moves" (MkPostMove n 1 1 "buy" "processing")
+  fireEv (Info "Buy clicked! id: \{show n}")
 
 onClickSell : MSF M' (NP I [Nat]) ()
-onClickSell = arrM $ \n => fireEv (Info "Sell clicked! id: \{show n}")
+onClickSell = arrM $ \[n] => do
+  postMove "http://localhost:3000/moves" (MkPostMove n 1 1 "sell" "processing")
+  fireEv (Info "Sell clicked! id: \{show n}")
 
 sf : MSF M' Ev' ()
 sf = toI . unSOP . from ^>> collect [ onInit
