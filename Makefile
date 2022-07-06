@@ -16,4 +16,8 @@ open-frontend:
 	open ./static/index.html
 
 json-server:
-	json-server --watch ./db.json
+	json-server -p 4000 --watch ./db.json
+
+.PHONY: nginx
+nginx:
+	nginx -c $(CURDIR)/nginx/html

@@ -1,0 +1,24 @@
+daemon off;
+error_log /dev/stdout info;
+
+events {}
+
+http {
+    access_log /dev/stdout;
+
+    server {
+        listen 0.0.0.0:3000;
+        root /Users/alexhumphreys/misc/prediction/static;
+
+        location /app {
+            alias /Users/alexhumphreys/misc/prediction/static;
+        }
+        location / {
+            auth_basic           "Administrator’s Area";
+            auth_basic_user_file .htpasswd;
+
+            proxy_pass             http://localhost:4000;
+            proxy_read_timeout     900;
+        }
+    }
+}
