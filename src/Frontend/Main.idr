@@ -526,6 +526,7 @@ content' =
 
 ui' : M' (MSF M' Ev' (), JSIO ())
 ui' = do
+  rawInnerHtmlAt appStyle allRules
   innerHtmlAt contentDiv content'
 
   pure(sf, pure ())
