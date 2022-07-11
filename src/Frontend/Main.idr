@@ -207,9 +207,9 @@ todoItemRef n = Id Div "todoItem\{show n}"
 
 coreCSS : List (Rule 1)
 coreCSS =
-  [ elem Html !!
-      [ Height .= perc 100]
-    ]
+  [ elem Html !! [ Height .= perc 100]
+  , class "l-flex" !! [Display .= Flex]
+  ]
 
 allRules : String
 allRules = fastUnlines . map Text.CSS.Render.render
@@ -325,7 +325,7 @@ renderJson y = let json = encode y in
 
 renderListJson : ToJSON x => List x -> Node Ev'
 renderListJson y = let ls = map encode y in
-  div [] $ map Text ls
+  div [] $ map (\s => div [] [Text s]) ls
 
 listMoveDiv : ElemRef HTMLDivElement
 listMoveDiv = Id Div "\{aPrefix}_listMove"
@@ -333,7 +333,7 @@ listMoveDiv = Id Div "\{aPrefix}_listMove"
 onMovesLoaded : MSF M' (NP I [List Move]) ()
 onMovesLoaded = do
   arrM $ \[ms] => do
-    innerHtmlAt listMoveDiv $ renderJson ms
+    innerHtmlAt listMoveDiv $ renderListJson ms
 
 listParticipantDiv : ElemRef HTMLDivElement
 listParticipantDiv = Id Div "\{aPrefix}_listParticipant"
@@ -341,7 +341,7 @@ listParticipantDiv = Id Div "\{aPrefix}_listParticipant"
 onParticipantsLoaded : MSF M' (NP I [List Participant]) ()
 onParticipantsLoaded = do
   arrM $ \[ms] => do
-    innerHtmlAt listParticipantDiv $ renderJson ms
+    innerHtmlAt listParticipantDiv $ renderListJson ms
 
 gameDiv : ElemRef HTMLDivElement
 gameDiv = Id Div "\{aPrefix}_game"
@@ -362,15 +362,13 @@ where
   cardsDiv = Id Div "\{aPrefix}_cards"
   gameContainer : Node Ev'
   gameContainer =
-    div []
+    div [classes ["game", "l-flex"]]
       [ div [ref boardDiv] []
       , div [ref participantsDiv'] []
       ]
   renderBoard : Board -> Node Ev'
   renderBoard x =
-    div []
-      [ div [ref cardsDiv] []
-      ]
+    div [ref cardsDiv] []
   btnBuy : Nat -> ElemRef HTMLButtonElement
   btnBuy n = Id Button "\{aPrefix}_buyCard\{show n}"
   btnSell : Nat -> ElemRef HTMLButtonElement
@@ -389,7 +387,7 @@ where
   renderCards ls =
     div [] $ map renderCard ls
   renderParticipants : List Participant -> Node Ev'
-  renderParticipants x = div [] [Text $ show x]
+  renderParticipants ls = renderListJson ls
 
 onUserLoaded : MSF M' (NP I [User]) ()
 onUserLoaded = arrM $ (\[u] => innerHtmlAt userDiv $ renderUser u)
@@ -515,9 +513,10 @@ content' =
     , div [ref out] []
     , div [ref errorDiv] []
     , div [ref infoDiv] []
-    , div [ref listMoveDiv] []
-    , div [ref listParticipantDiv] []
-    , div [ref gameDiv] []
+    , div [class "l-flex"]
+      [ div [ref gameDiv] []
+      , div [ref listMoveDiv, class "game-moves"] []
+      ]
     , div [ref listTodoDiv] []
     , div [ref selectedTodoDiv] []
     , div [ref createTodoDiv] []
