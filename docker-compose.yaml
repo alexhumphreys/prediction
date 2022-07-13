@@ -1,0 +1,26 @@
+version: "3.9"
+services:
+  prediction:
+    build:
+      context: .
+    links:
+      - postgres
+    ports:
+      - "3000:3000"
+    environment:
+    - PGUSER=postgres
+    - PGHOST=postgres
+    - PGPASSWORD=mysecretpassword
+    - PGDATABASE=foo
+    - PGPORT=5432
+  postgres:
+    image: postgres
+    environment:
+    - POSTGRES_PASSWORD=mysecretpassword
+    - POSTGRES_DB=foo
+    volumes:
+      - ./fixtures:/docker-entrypoint-initdb.d/:ro
+    ports:
+      - "5432:5432"
+volumes:
+  logvolume01: {}

@@ -21,3 +21,14 @@ json-server:
 .PHONY: nginx
 nginx:
 	nginx -c $(CURDIR)/nginx/html
+
+run-db:
+	docker run -it -p 5432:5432 -v $(CURDIR)/fixtures/data.sql:/docker-entrypoint-initdb.d/data.sql:ro --name some-postgres -e POSTGRES_PASSWORD=mysecretpassword -d postgres
+
+kill-db:
+	docker rm -f some-postgres
+
+docker-compose-restart:
+	docker compose down
+	docker compose build
+	docker compose up

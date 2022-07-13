@@ -1,0 +1,31 @@
+-- from https://www.educba.com/postgresql-select/
+
+CREATE TABLE IF NOT EXISTS stocks
+(id SERIAL PRIMARY KEY,
+description VARCHAR NOT NULL);
+
+CREATE TABLE IF NOT EXISTS users
+(id SERIAL PRIMARY KEY,
+name VARCHAR NOT NULL);
+
+CREATE TABLE IF NOT EXISTS participants
+(id SERIAL PRIMARY KEY,
+userId INT NOT NULL REFERENCES users(id),
+money INTEGER NOT NULL);
+
+CREATE TABLE IF NOT EXISTS boards
+(id SERIAL PRIMARY KEY);
+
+CREATE TABLE IF NOT EXISTS games
+(id SERIAL PRIMARY KEY,
+startingParticipantId INT NOT NULL REFERENCES participants(id),
+boardId INT NOT NULL REFERENCES participants(id)
+);
+
+CREATE TABLE IF NOT EXISTS moves
+(id SERIAL PRIMARY KEY,
+gameId INT NOT NULL REFERENCES games(id),
+participantId INT NOT NULL REFERENCES participants(id),
+moveType VARCHAR NOT NULL,
+payload VARCHAR NOT NULL
+);
