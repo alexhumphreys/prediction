@@ -12,13 +12,13 @@ FROM ghcr.io/stefan-hoeck/idris2-pack:nightly-220712 as build
 WORKDIR /opt/prediction
 
 COPY ./pack.toml .
-COPY ./prediction.ipkg .
+COPY ./config.ipkg .
 
-RUN pack install-deps ./prediction.ipkg
+RUN pack install-deps ./config.ipkg
 
 COPY src src
 
-RUN pack --cg node build ./prediction.ipkg
+RUN pack --cg node build ./config.ipkg
 
 FROM node:16
 

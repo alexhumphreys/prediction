@@ -1,5 +1,5 @@
 repl:
-	rlwrap -n idris2 --find-ipkg Main.idr
+	rlwrap pack --with-ipkg config.ipkg --cg node repl ./src/Server/Main.idr
 
 clean:
 	rm -r ./build
@@ -28,7 +28,7 @@ run-db:
 kill-db:
 	docker rm -f some-postgres
 
-docker-compose-restart:
+restart-docker-compose:
 	docker compose down
 	docker compose build
 	docker compose up

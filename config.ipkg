@@ -14,6 +14,13 @@ package prediction
 
 -- packages to add to search path
 depends = contrib
+  , tyttp
+  , elab-util
+  , sop
+  , json
+  , tyttp-json
+  , apache-mime-types
+  , idris2-node-postgres
 
 -- modules to install
 -- modules =
