@@ -23,7 +23,7 @@ nginx:
 	nginx -c $(CURDIR)/nginx/html
 
 run-db:
-	docker run -it -p 5432:5432 -v $(CURDIR)/fixtures/data.sql:/docker-entrypoint-initdb.d/data.sql:ro --name some-postgres -e POSTGRES_PASSWORD=mysecretpassword -d postgres
+	docker run -it -p 5432:5432 -v $(CURDIR)/fixtures/data.sql:/docker-entrypoint-initdb.d/data.sql:ro --name some-postgres -e POSTGRES_PASSWORD=admin -d postgres
 
 kill-db:
 	docker rm -f some-postgres

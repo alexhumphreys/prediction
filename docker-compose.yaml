@@ -10,13 +10,13 @@ services:
     environment:
     - PGUSER=postgres
     - PGHOST=postgres
-    - PGPASSWORD=mysecretpassword
+    - PGPASSWORD=admin
     - PGDATABASE=foo
     - PGPORT=5432
   postgres:
     image: postgres
     environment:
-    - POSTGRES_PASSWORD=mysecretpassword
+    - POSTGRES_PASSWORD=admin
     - POSTGRES_DB=foo
     volumes:
     - ./fixtures/:/docker-entrypoint-initdb.d/:ro
