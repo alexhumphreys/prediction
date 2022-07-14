@@ -19,7 +19,7 @@ services:
     - POSTGRES_PASSWORD=mysecretpassword
     - POSTGRES_DB=foo
     volumes:
-      - ./fixtures:/docker-entrypoint-initdb.d/:ro
+    - ./fixtures/:/docker-entrypoint-initdb.d/:ro
     ports:
       - "5432:5432"
 volumes:

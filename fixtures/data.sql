@@ -8,24 +8,28 @@ CREATE TABLE IF NOT EXISTS users
 (id SERIAL PRIMARY KEY,
 name VARCHAR NOT NULL);
 
+-- startingParticipantId INT NOT NULL REFERENCES participants(id),
+CREATE TABLE IF NOT EXISTS games
+(id SERIAL PRIMARY KEY,
+title VARCHAR NOT NULL);
+
 CREATE TABLE IF NOT EXISTS participants
 (id SERIAL PRIMARY KEY,
+gameId INT NOT NULL REFERENCES games(id),
 userId INT NOT NULL REFERENCES users(id),
 money INTEGER NOT NULL);
 
-CREATE TABLE IF NOT EXISTS boards
-(id SERIAL PRIMARY KEY);
 
-CREATE TABLE IF NOT EXISTS games
+CREATE TABLE IF NOT EXISTS boards
 (id SERIAL PRIMARY KEY,
-startingParticipantId INT NOT NULL REFERENCES participants(id),
-boardId INT NOT NULL REFERENCES participants(id)
-);
+gameId INT NOT NULL REFERENCES games(id));
 
 CREATE TABLE IF NOT EXISTS moves
 (id SERIAL PRIMARY KEY,
 gameId INT NOT NULL REFERENCES games(id),
 participantId INT NOT NULL REFERENCES participants(id),
 moveType VARCHAR NOT NULL,
-payload VARCHAR NOT NULL
-);
+payload VARCHAR NOT NULL);
+
+INSERT INTO users(name) VALUES ('alice');
+INSERT INTO users(name) VALUES ('bob');
