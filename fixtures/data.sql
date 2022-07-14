@@ -1,24 +1,24 @@
 -- from https://www.educba.com/postgresql-select/
 
+-- startingParticipantId INT NOT NULL REFERENCES participants(id),
+CREATE TABLE IF NOT EXISTS games
+(id SERIAL PRIMARY KEY,
+title VARCHAR NOT NULL);
+
 CREATE TABLE IF NOT EXISTS stocks
 (id SERIAL PRIMARY KEY,
+gameId INT NOT NULL REFERENCES games(id),
 description VARCHAR NOT NULL);
 
 CREATE TABLE IF NOT EXISTS users
 (id SERIAL PRIMARY KEY,
 name VARCHAR NOT NULL);
 
--- startingParticipantId INT NOT NULL REFERENCES participants(id),
-CREATE TABLE IF NOT EXISTS games
-(id SERIAL PRIMARY KEY,
-title VARCHAR NOT NULL);
-
 CREATE TABLE IF NOT EXISTS participants
 (id SERIAL PRIMARY KEY,
 gameId INT NOT NULL REFERENCES games(id),
 userId INT NOT NULL REFERENCES users(id),
 money INTEGER NOT NULL);
-
 
 CREATE TABLE IF NOT EXISTS boards
 (id SERIAL PRIMARY KEY,

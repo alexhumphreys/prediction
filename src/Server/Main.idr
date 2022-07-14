@@ -77,16 +77,23 @@ tryId (Just ((fst ** []))) = Nothing
 tryId (Just ((fst ** (x :: [])))) = idFromRow fst x
 tryId (Just ((fst ** (x :: y)))) = Nothing
 
+stocksToSQL : Int -> List String -> String
+stocksToSQL gameId strs = concat $ intersperse ", " $
+                          map (\s => "(\{show gameId}, '\{s}')") strs
+
 createGame : FromString e => Pool -> GamePayload -> PG.Promise.Promise e IO (Int)
 createGame pool (MkGamePayload startingParticipantId title stocks) = do
   -- BAD: vulnerable to SQL injection
   -- need to work out how to pass a HList to the FFI
+  -- TODO wrap this in a transaction
   id_ <- query pool "INSERT INTO games(title) VALUES ('\{title}') RETURNING id;"
   id__ <- lift $ getAll id_
   id___ <- lift $ tryId id__
   case id___ of
        Nothing => reject "Error: got nothing"
-       (Just id____) => pure $ trace (show id____) id____
+       (Just id____) => do
+         _ <- query pool "INSERT INTO stocks(gameId, description) VALUES \{stocksToSQL id____ stocks} RETURNING id;"
+         pure $ trace (show id____) id____
 
 {-
 getFoos : FromString e => Pool -> PG.Promise.Promise e IO (List Foo)
