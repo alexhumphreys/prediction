@@ -77,34 +77,40 @@ tryId (Just ((fst ** []))) = Nothing
 tryId (Just ((fst ** (x :: [])))) = idFromRow fst x
 tryId (Just ((fst ** (x :: y)))) = Nothing
 
+getId : Result -> Maybe Int
+getId x = tryId $ getAll x
+
+-- stocksToGameStocksSQL : Int -> List String -> List String
+-- stocksToGameStocksSQL gameId strs = concat $ intersperse ", " $
+                          -- map (\s => "(\{show gameId}, '\{s}')") strs
 stocksToSQL : Int -> List String -> String
 stocksToSQL gameId strs = concat $ intersperse ", " $
                           map (\s => "(\{show gameId}, '\{s}')") strs
+
+createParticipants : FromString e => Pool -> Int -> PG.Promise.Promise e IO ()
+createParticipants pool gameId = do
+  _ <- query pool "INSERT INTO participants(gameId, userId, money) VALUES (\{show gameId},1,100) RETURNING id;"
+  _ <- query pool "INSERT INTO participants(gameId, userId, money) VALUES (\{show gameId},2,100) RETURNING id;"
+  pure ()
+
+createGameStocks : FromString e => Pool -> Int -> List String -> PG.Promise.Promise e IO ()
+createGameStocks pool gameId [] = pure ()
+createGameStocks pool gameId (x :: xs) = do
+  resId <- query pool "INSERT INTO stocks(gameId, description) VALUES (\{show gameId}, '\{x}') RETURNING id;"
+  Just stockId <- lift $ getId resId | Nothing => reject $ fromString "no stock id for \{show x}"
+  ignore $ query pool "INSERT INTO boardStocks(gameId, stockId, amount) VALUES (\{show gameId}, \{show stockId}, 10) RETURNING id;"
+  createGameStocks pool gameId xs
 
 createGame : FromString e => Pool -> GamePayload -> PG.Promise.Promise e IO (Int)
 createGame pool (MkGamePayload startingParticipantId title stocks) = do
   -- BAD: vulnerable to SQL injection
   -- need to work out how to pass a HList to the FFI
   -- TODO wrap this in a transaction
-  id_ <- query pool "INSERT INTO games(title) VALUES ('\{title}') RETURNING id;"
-  id__ <- lift $ getAll id_
-  id___ <- lift $ tryId id__
-  case id___ of
-       Nothing => reject "Error: got nothing"
-       (Just id____) => do
-         _ <- query pool "INSERT INTO stocks(gameId, description) VALUES \{stocksToSQL id____ stocks} RETURNING id;"
-         pure $ trace (show id____) id____
-
-{-
-getFoos : FromString e => Pool -> PG.Promise.Promise e IO (List Foo)
-getFoos pool = do
-  b <- query pool "SELECT bar,baz FROM foo"
-  foos <- lift $ getAll b
-  ls <- lift $ tryFoo foos
-  case ls of
-       Nothing => reject "Error: got nothing"
-       (Just cs) => pure $ trace (show cs) cs
-       -}
+  resId <- query pool "INSERT INTO games(title) VALUES ('\{title}') RETURNING id;"
+  Just id <- lift $ getId resId | Nothing => reject $ fromString "no game id for game titled: \{title}"
+  createGameStocks pool id stocks
+  createParticipants pool id
+  pure $ trace "created game \{show id}" id
 
 getCountries : FromString e => Pool -> PG.Promise.Promise e IO (List Country)
 getCountries pool = do
@@ -140,6 +146,14 @@ options = MkOptions
     }
   }
 
+stringToMaybeNat : String -> Maybe Nat
+stringToMaybeNat "0" = Just 0
+stringToMaybeNat str =
+  let try = the Nat $ cast str in
+  case try of
+       0 => Nothing
+       x => Just x
+
 main : IO ()
 main = eitherT putStrLn pure $ do
   pool <- getPool
@@ -166,6 +180,9 @@ main = eitherT putStrLn pure $ do
                 let q = createGame pool foo
                 gameId <- transform q
                 text (show gameId) ctx >>= status OK
+          , get $ path "/games/*" :> \ctx => do
+            let id = stringToMaybeNat ctx.request.url.path.rest
+            text (show id) ctx >>= status OK
           , get $ path "/request" :> \ctx => do
               putStrLn "Calling http"
               res <- MkPromise $ \cb =>

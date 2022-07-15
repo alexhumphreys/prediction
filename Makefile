@@ -28,6 +28,9 @@ run-db:
 kill-db:
 	docker rm -f some-postgres
 
+repl-db:
+	pgcli --host 127.0.0.1 -u postgres -d foo
+
 restart-docker-compose:
 	docker compose down
 	docker compose build
