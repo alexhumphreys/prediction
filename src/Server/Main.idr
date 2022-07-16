@@ -41,6 +41,13 @@ FromString NodeError where
 
 record GameState where
 
+record GameShort where
+  constructor MkGameShort
+  id : Int
+  title : String
+
+%runElab derive "GameShort" [Generic, Meta, Show, Eq, RecordToJSON]
+
 record GamePayload where
   constructor MkGamePayload
   startingParticipantId : Int
@@ -66,19 +73,16 @@ tryCountry (Just (MkDPair fst snd)) = traverse (countryFromRow fst) snd
 gamePayloadToQuery : GameState -> String
 gamePayloadToQuery x = trace "?gamePayloadToQuery" "empty string"
 
-idFromRow : (us : List Universe) -> (RowU us) -> Maybe Int
-idFromRow ([Num]) ([x]) = Just $ cast x
-idFromRow (x :: _) _ = Nothing
-idFromRow ([]) _ = Nothing
-
-tryId : Maybe (us : List Universe ** List (Row (RowTypes us))) -> Maybe Int
-tryId Nothing = Nothing
-tryId (Just ((fst ** []))) = Nothing
-tryId (Just ((fst ** (x :: [])))) = idFromRow fst x
-tryId (Just ((fst ** (x :: y)))) = Nothing
-
 getId : Result -> Maybe Int
 getId x = tryId $ getAll x
+  where
+    idFromRow : (us : List Universe) -> (RowU us) -> Maybe Int
+    idFromRow ([Num]) ([x]) = Just $ cast x
+    idFromRow _ _ = Nothing
+    tryId : Maybe (us : List Universe ** List (Row (RowTypes us))) -> Maybe Int
+    tryId Nothing = Nothing
+    tryId (Just ((fst ** (x :: [])))) = idFromRow fst x
+    tryId (Just _) = Nothing
 
 -- stocksToGameStocksSQL : Int -> List String -> List String
 -- stocksToGameStocksSQL gameId strs = concat $ intersperse ", " $
@@ -111,6 +115,24 @@ createGame pool (MkGamePayload startingParticipantId title stocks) = do
   createGameStocks pool id stocks
   createParticipants pool id
   pure $ trace "created game \{show id}" id
+
+
+getGames : Result -> Maybe (List GameShort)
+getGames x = try gameFromRow $ !(getAll x)
+  where
+    gameFromRow : (us : List Universe) -> (RowU us) -> Maybe GameShort
+    gameFromRow ([Num, Str]) ([x, str]) = Just $ MkGameShort (cast x) (cast str)
+    gameFromRow _ _ = Nothing
+    try : ((us : List Universe) -> (RowU us) -> Maybe z)
+        -> (us : List Universe ** List (Row (RowTypes us))) -> Maybe (List z)
+    try f (fst ** []) = Just []
+    try f (fst ** (y :: xs)) = Just $ !(f fst y) :: !(try f (fst ** xs))
+
+fetchGames : FromString e => Pool -> PG.Promise.Promise e IO (List GameShort)
+fetchGames pool = do
+  resId <- query pool "SELECT id,title FROM games;"
+  Just games <- lift $ getGames resId | Nothing => reject $ fromString "couldn't parse list of games"
+  pure games
 
 getCountries : FromString e => Pool -> PG.Promise.Promise e IO (List Country)
 getCountries pool = do
@@ -180,6 +202,10 @@ main = eitherT putStrLn pure $ do
                 let q = createGame pool foo
                 gameId <- transform q
                 text (show gameId) ctx >>= status OK
+          , get $ path "/games" :> \ctx => do
+              let games = fetchGames pool
+              ret <- transform games
+              json ret ctx >>= status OK
           , get $ path "/games/*" :> \ctx => do
             let id = stringToMaybeNat ctx.request.url.path.rest
             text (show id) ctx >>= status OK
