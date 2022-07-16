@@ -31,10 +31,14 @@ kill-db:
 repl-db:
 	pgcli --host 127.0.0.1 -u postgres -d foo
 
-do-requests:
+curl:
 	curlie -j POST :3000/games/newGame startingParticipantId:=1 title="another game" stocks:='["sweden", "ireland", "france"]'
 	@echo
+	@echo
 	curlie :3000/games
+	@echo
+	@echo
+	curlie :3000/games/1
 
 restart-docker-compose:
 	docker compose down

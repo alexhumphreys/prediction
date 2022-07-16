@@ -117,16 +117,30 @@ createGame pool (MkGamePayload startingParticipantId title stocks) = do
   pure $ trace "created game \{show id}" id
 
 
+try : ((us : List Universe) -> (RowU us) -> Maybe z)
+    -> (us : List Universe ** List (Row (RowTypes us))) -> Maybe (List z)
+try f (fst ** []) = Just []
+try f (fst ** (y :: xs)) = Just $ !(f fst y) :: !(try f (fst ** xs))
+
 getGames : Result -> Maybe (List GameShort)
 getGames x = try gameFromRow $ !(getAll x)
   where
     gameFromRow : (us : List Universe) -> (RowU us) -> Maybe GameShort
     gameFromRow ([Num, Str]) ([x, str]) = Just $ MkGameShort (cast x) (cast str)
     gameFromRow _ _ = Nothing
-    try : ((us : List Universe) -> (RowU us) -> Maybe z)
-        -> (us : List Universe ** List (Row (RowTypes us))) -> Maybe (List z)
-    try f (fst ** []) = Just []
-    try f (fst ** (y :: xs)) = Just $ !(f fst y) :: !(try f (fst ** xs))
+
+getGame : Result -> Maybe (GameShort)
+getGame x = head' !(try gameFromRow $ !(getAll x))
+  where
+    gameFromRow : (us : List Universe) -> (RowU us) -> Maybe GameShort
+    gameFromRow ([Num, Str]) ([x, str]) = Just $ MkGameShort (cast x) (cast str)
+    gameFromRow _ _ = Nothing
+
+fetchGame : FromString e => Pool -> Int -> PG.Promise.Promise e IO (GameShort)
+fetchGame pool i = do
+  resGame <- query pool "SELECT id,title FROM games WHERE id=\{show i};"
+  Just game <- lift $ getGame resGame | Nothing => reject $ fromString "couldn't parse game \{show i}"
+  pure game
 
 fetchGames : FromString e => Pool -> PG.Promise.Promise e IO (List GameShort)
 fetchGames pool = do
@@ -201,14 +215,19 @@ main = eitherT putStrLn pure $ do
                 let foo = ctx.request.body
                 let q = createGame pool foo
                 gameId <- transform q
-                text (show gameId) ctx >>= status OK
+                text (show gameId) ctx >>= status CREATED
           , get $ path "/games" :> \ctx => do
               let games = fetchGames pool
               ret <- transform games
               json ret ctx >>= status OK
           , get $ path "/games/*" :> \ctx => do
             let id = stringToMaybeNat ctx.request.url.path.rest
-            text (show id) ctx >>= status OK
+            case id of
+                 Nothing => text "invalid id" ctx >>= status BAD_REQUEST
+                 (Just n) => do
+                   let game = fetchGame pool (cast n)
+                   ret <- transform game
+                   json ret ctx >>= status OK
           , get $ path "/request" :> \ctx => do
               putStrLn "Calling http"
               res <- MkPromise $ \cb =>
