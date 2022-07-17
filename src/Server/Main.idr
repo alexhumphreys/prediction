@@ -1,4 +1,4 @@
-module Main
+module Server.Main
 
 import Data.Buffer
 import Data.Buffer.Ext
@@ -27,7 +27,7 @@ import Debug.Trace
 import Data.List.Quantifiers
 import Generics.Derive
 import JSON
-import Types
+import Server.Types
 
 %language ElabReflection
 

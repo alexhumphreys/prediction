@@ -1,3 +1,5 @@
+module Frontend.Main
+
 import Rhone.JS
 import Data.List1
 import Data.String

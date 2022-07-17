@@ -23,15 +23,15 @@ depends = contrib
   , idris2-node-postgres
 
 -- modules to install
-modules = Types
+modules = Server.Types
 
 -- main file (i.e. file to load at REPL)
-main = Main
+main = Server.Main
 
 -- name of executable
 executable = prediction
 -- opts =
-sourcedir = "./src/Server"
+sourcedir = "./src"
 -- builddir =
 -- outputdir =
 

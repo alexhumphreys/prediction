@@ -5,10 +5,13 @@ clean:
 	rm -r ./build
 
 repl-spa:
-	rlwrap -n pack --with-ipkg ./src/Frontend/config.ipkg --cg javascript repl ./src/Frontend/Main.idr
+	rlwrap -n pack --with-ipkg ./spa.ipkg --cg javascript repl ./src/Frontend/Main.idr
+
+server:
+	pack --cg node build ./config.ipkg
 
 spa:
-	pack build ./src/Frontend/config.ipkg
+	pack build ./spa.ipkg
 	mkdir -p static/js
 	cp ./src/Frontend/build/exec/spa.js static/js/spa.js
 
