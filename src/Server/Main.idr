@@ -259,20 +259,4 @@ main = eitherT putStrLn pure $ do
                    let game = fetchGame pool (cast n)
                    ret <- transform game
                    json ret ctx >>= status OK
-          , get $ path "/request" :> \ctx => do
-              putStrLn "Calling http"
-              res <- MkPromise $ \cb =>
-                ignore $ http.get "http://localhost:3000/parsed?q=from-request" cb.onSucceded
-              if res.statusCode == 200
-                then
-                  pure $
-                    { response.status := OK
-                    , response.headers := [("Content-Type", "text/plain")]
-                    , response.body := MkPublisher $ \s => do
-                        onData res s.onNext
-                        onEnd res s.onSucceded
-                        onError res s.onFailed
-                    } ctx
-                else
-                  text "HTTP call failed with status code \{show res.statusCode}" ctx >>= status INTERNAL_SERVER_ERROR
           ]
