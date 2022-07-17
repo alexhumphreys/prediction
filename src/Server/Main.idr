@@ -27,6 +27,9 @@ import Debug.Trace
 import Data.List.Quantifiers
 import Generics.Derive
 import JSON
+import Types
+
+%language ElabReflection
 
 %foreign """
 node:lambda: (str) => { return {message: str, code: str, stack:""} }
@@ -37,67 +40,8 @@ prim__from_string : String -> IO NodeError
 FromString NodeError where
   fromString x = unsafePerformIO $ prim__from_string x
 
-%language ElabReflection
 
 %runElab derive "Universe" [Generic, Meta, Eq]
-
-record Participant where
-  constructor MkParticipant
-  id : Int
-  gameId : Int
-  userId : Int
-  money : Int
-
-%runElab derive "Participant" [Generic, Meta, Show, Eq, RecordToJSON]
-
-record Stock where
-  constructor MkStock
-  id : Int
-  gameId : Int
-  description : String
-
-%runElab derive "Stock" [Generic, Meta, Show, Eq, RecordToJSON]
-
-record GameStock where
-  constructor MkGameStock
-  id : Int
-  gameId : Int
-  stockId : Int
-  amount : Int
-
-%runElab derive "GameStock" [Generic, Meta, Show, Eq, RecordToJSON]
-
-record StockState where
-  constructor MkStockState
-  stockId : Int
-  description : String
-  amount : Int
-
-%runElab derive "StockState" [Generic, Meta, Show, Eq, RecordToJSON]
-
-record GameState where
-  constructor MkGameState
-  id : Int
-  title : String
-  stockState : List StockState
-  participatns : List Participant
-
-%runElab derive "GameState" [Generic, Meta, Show, Eq, RecordToJSON]
-
-record GameShort where
-  constructor MkGameShort
-  id : Int
-  title : String
-
-%runElab derive "GameShort" [Generic, Meta, Show, Eq, RecordToJSON]
-
-record GamePayload where
-  constructor MkGamePayload
-  startingParticipantId : Int
-  title : String
-  stocks : List String
-
-%runElab derive "GamePayload" [Generic, Meta, Show, Eq, RecordToJSON, RecordFromJSON]
 
 data Country =
   MkCountry String Nat
@@ -212,7 +156,7 @@ where
 mkStockStates : List GameStock -> List Stock -> List StockState
 mkStockStates [] ys = []
 mkStockStates ((MkGameStock id gameId stockId amount) :: xs) ys =
-  case Data.List.find (\y => Main.Stock.id y == stockId) ys of
+  case Data.List.find (\y => Stock.id y == stockId) ys of
        Nothing => mkStockStates xs ys
        (Just stock) => MkStockState stockId (description stock) amount :: mkStockStates xs ys
 
