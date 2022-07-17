@@ -41,6 +41,15 @@ FromString NodeError where
 
 %runElab derive "Universe" [Generic, Meta, Eq]
 
+record Participant where
+  constructor MkParticipant
+  id : Int
+  gameId : Int
+  userId : Int
+  money : Int
+
+%runElab derive "Participant" [Generic, Meta, Show, Eq, RecordToJSON]
+
 record Stock where
   constructor MkStock
   id : Int
@@ -71,6 +80,7 @@ record GameState where
   id : Int
   title : String
   stockState : List StockState
+  participatns : List Participant
 
 %runElab derive "GameState" [Generic, Meta, Show, Eq, RecordToJSON]
 
@@ -187,6 +197,18 @@ fetchStocks pool ((MkGameStock id gameId stockId amount) :: xs) = do
   Just stock <- lift $ getStock resStock | Nothing => reject $ fromString "couldn't parse stock \{show id}"
   pure $ stock :: !(fetchStocks pool xs)
 
+fetchParticipants : FromString e =>  Pool -> GameShort -> PG.Promise.Promise e IO (List Participant)
+fetchParticipants pool (MkGameShort id title) = do
+  resParticipants <- query pool "SELECT * FROM participants WHERE gameId=\{show id};"
+  Just participants <- lift $ getParticipants resParticipants | Nothing => reject $ fromString "couldn't parse participants for gameId: \{show id}"
+  pure participants
+where
+  participantFromRow : (us : List Universe) -> (RowU us) -> Maybe Participant
+  participantFromRow ([Num, Num, Num, Num]) ([x, y, z, w]) = Just $ MkParticipant (cast x) (cast y) (cast z) (cast w)
+  participantFromRow _ _ = Nothing
+  getParticipants : Result -> Maybe (List Participant)
+  getParticipants x = try participantFromRow $ !(getAll x)
+
 mkStockStates : List GameStock -> List Stock -> List StockState
 mkStockStates [] ys = []
 mkStockStates ((MkGameStock id gameId stockId amount) :: xs) ys =
@@ -194,8 +216,8 @@ mkStockStates ((MkGameStock id gameId stockId amount) :: xs) ys =
        Nothing => mkStockStates xs ys
        (Just stock) => MkStockState stockId (description stock) amount :: mkStockStates xs ys
 
-mkGameState : GameShort -> List GameStock -> List Stock -> GameState
-mkGameState (MkGameShort id title) xs ys = MkGameState id title $ mkStockStates xs ys
+mkGameState : GameShort -> List GameStock -> List Stock -> List Participant -> GameState
+mkGameState (MkGameShort id title) xs ys zs = MkGameState id title (mkStockStates xs ys) zs
 
 fetchGame : FromString e => Pool -> Int -> PG.Promise.Promise e IO (GameState)
 fetchGame pool i = do
@@ -204,7 +226,8 @@ fetchGame pool i = do
   resGameStocks <- query pool "SELECT * FROM gameStocks WHERE gameId=\{show i};"
   Just gameStocks <- lift $ getGameStocks resGameStocks | Nothing => reject $ fromString "couldn't parse gameStocks for gameId: \{show i}"
   stocks <- fetchStocks pool gameStocks
-  pure $ mkGameState game gameStocks stocks
+  participants <- fetchParticipants pool game
+  pure $ mkGameState game gameStocks stocks participants
 
 fetchGames : FromString e => Pool -> PG.Promise.Promise e IO (List GameShort)
 fetchGames pool = do
