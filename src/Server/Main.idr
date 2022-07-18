@@ -188,14 +188,11 @@ getCountries pool = do
        Nothing => reject "Error: got nothing"
        (Just cs) => pure $ trace (show cs) cs
 
-Monad n => MonadPromise e n (PG.Promise.Promise e n) where
-  promise = ?jjjj
-
-transform : Monad m => PG.Promise.Promise e m a -> Core.Promise.Promise e m a
-transform x = MkPromise $ \cb => do
-  resolve x
-    (\a => cb.onSucceded a)
-    (\e => cb.onFailed e)
+transform : MonadPromise e n m => PG.Promise.Promise e n a -> m a
+-- short form
+-- transform = Core.Promise.promise . PG.Promise.resolve
+transform x = Core.Promise.promise $ \resolve', reject' =>
+  PG.Promise.resolve x resolve' reject'
 
 options : Error e => Options e
 options = MkOptions
@@ -228,15 +225,11 @@ main : IO ()
 main = eitherT putStrLn pure $ do
   pool <- getPool
   http <- HTTP.require
-  ignore $ HTTP.listen {e = NodeError} http options
-      $ (\next, ctx => mapFailure ?hole1 (next ctx))
+  ignore $ HTTP.listen http options
+      $ (\next, ctx => mapFailure Node.Error.message (next ctx))
       $ parseUrl' (const $ text "URL has invalid format" >=> status BAD_REQUEST)
       :> routes' (text "Resource could not be found" >=> status NOT_FOUND) { m = Core.Promise.Promise NodeError IO }
-          [ get $ TyTTP.URL.URL.path "/query" $ \ctx =>
-              TyTTP.HTTP.Producer.text ctx.request.url.search ctx >>= status OK
-          , get $ TyTTP.URL.URL.path "/parsed" $ Simple.search $ \ctx =>
-              text (show ctx.request.url.search) ctx >>= status OK
-          , get $ path "/db" :> \ctx => do
+          [ get $ path "/db" :> \ctx => do
               putStrLn "querying db"
               let cs = getCountries pool
               x <- transform cs
@@ -248,9 +241,8 @@ main = eitherT putStrLn pure $ do
               $ \ctx => do
                 let foo = ctx.request.body
                 let q = createGame pool foo
-                -- gameId <- transform q
-                -- text (show gameId) ctx >>= status CREATED
-                ?hole2
+                gameId <- transform q
+                text (show gameId) ctx >>= status CREATED
           , get $ path "/games" :> \ctx => do
               let games = fetchGames pool
               ret <- transform games
