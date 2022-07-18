@@ -1,6 +1,12 @@
 repl:
 	rlwrap pack --with-ipkg config.ipkg --cg node repl ./src/Server/Main.idr
 
+.PHONY: build
+build:
+	npm install
+	pack --cg node build ./config.ipkg
+	chmod +x ./build/exec/prediction
+
 clean:
 	rm -r ./build
 
@@ -26,7 +32,7 @@ nginx:
 	nginx -c $(CURDIR)/nginx/html
 
 run-db:
-	docker run -it -p 5432:5432 -v $(CURDIR)/fixtures/data.sql:/docker-entrypoint-initdb.d/data.sql:ro --name some-postgres -e POSTGRES_PASSWORD=admin -d postgres
+	docker run -it -p 5432:5432 -v $(CURDIR)/fixtures/data.sql:/docker-entrypoint-initdb.d/data.sql:ro --name some-postgres -e POSTGRES_PASSWORD=admin -e POSTGRES_DB=foo -d postgres
 
 kill-db:
 	docker rm -f some-postgres
