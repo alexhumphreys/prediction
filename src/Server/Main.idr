@@ -225,17 +225,18 @@ main : IO ()
 main = eitherT putStrLn pure $ do
   pool <- getPool
   http <- HTTP.require
-  ignore $ HTTP.listen http options
-      $ (\next, ctx => mapFailure Node.Error.message (next ctx))
+  ignore $ HTTP.listen {e=NodeError} http options
+      -- $ (\next, ctx => mapFailure Node.Error.message (next ctx))
+      $ decodeUri' (text "URI decode has failed" >=> status BAD_REQUEST)
       $ parseUrl' (const $ text "URL has invalid format" >=> status BAD_REQUEST)
-      :> routes' (text "Resource could not be found" >=> status NOT_FOUND) { m = Core.Promise.Promise NodeError IO }
+      :> routes' (text "Resource could not be found" >=> status NOT_FOUND)
           [ get $ path "/db" :> \ctx => do
               putStrLn "querying db"
               let cs = getCountries pool
               x <- transform cs
               text (show x) ctx >>= status OK
           , post
-              $ TyTTP.URL.Path.path "/games/newGame"
+              $ path "/games/newGame"
               $ consumes' [JSON]
                   (\ctx => text "Content cannot be parsed: \{ctx.request.body}" ctx >>= status BAD_REQUEST)
               $ \ctx => do
@@ -250,7 +251,7 @@ main = eitherT putStrLn pure $ do
           , get $ path "/games/*" :> \ctx => do
             let id = stringToMaybeNat ctx.request.url.path.rest
             case id of
-                 Nothing => TyTTP.HTTP.Producer.text "invalid id" ctx >>= status BAD_REQUEST
+                 Nothing => text "invalid id" ctx >>= status BAD_REQUEST
                  (Just n) => do
                    let game = fetchGame pool (cast n)
                    ret <- transform game
