@@ -1,3 +1,6 @@
+run:
+	PGUSER=postgres PGHOST=127.0.0.1 PGPASSWORD=admin PGDATABASE=foo PGPORT=5432 node ./build/exec/prediction
+
 repl:
 	rlwrap pack --with-ipkg config.ipkg --cg node repl ./src/Server/Main.idr
 
