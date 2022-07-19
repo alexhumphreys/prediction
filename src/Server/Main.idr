@@ -40,22 +40,7 @@ prim__from_string : String -> IO NodeError
 FromString NodeError where
   fromString x = unsafePerformIO $ prim__from_string x
 
-
 %runElab derive "Universe" [Generic, Meta, Eq]
-
-data Country =
-  MkCountry String Nat
-Show Country where
-  show (MkCountry x k) = "MkCountry \{x} \{show k}"
-
-countryFromRow : (us : List Universe) -> (RowU us) -> Maybe Country
-countryFromRow ([Str, Num]) ([v, x]) = Just $ MkCountry v (cast x)
-countryFromRow (x :: _) _ = Nothing
-countryFromRow ([]) _ = Nothing
-
-tryCountry : Maybe (us ** Table us) -> Maybe (List Country)
-tryCountry Nothing = Nothing
-tryCountry (Just (MkDPair fst snd)) = traverse (countryFromRow fst) snd
 
 getId : Result -> Maybe Int
 getId x = tryId $ getAll x
@@ -179,15 +164,6 @@ fetchGames pool = do
   Just games <- lift $ getGames resId | Nothing => reject $ fromString "couldn't parse list of games"
   pure games
 
-getCountries : FromString e => Pool -> PG.Promise.Promise e IO (List Country)
-getCountries pool = do
-  b <- query pool "SELECT country,total FROM board"
-  countries <- lift $ getAll b
-  ls <- lift $ tryCountry countries
-  case ls of
-       Nothing => reject "Error: got nothing"
-       (Just cs) => pure $ trace (show cs) cs
-
 transform : MonadPromise e n m => PG.Promise.Promise e n a -> m a
 -- short form
 -- transform = Core.Promise.promise . PG.Promise.resolve
@@ -230,12 +206,7 @@ main = eitherT putStrLn pure $ do
       $ decodeUri' (text "URI decode has failed" >=> status BAD_REQUEST)
       $ parseUrl' (const $ text "URL has invalid format" >=> status BAD_REQUEST)
       :> routes' (text "Resource could not be found" >=> status NOT_FOUND)
-          [ get $ path "/db" :> \ctx => do
-              putStrLn "querying db"
-              let cs = getCountries pool
-              x <- transform cs
-              text (show x) ctx >>= status OK
-          , post
+          [  post
               $ path "/games/newGame"
               $ consumes' [JSON]
                   (\ctx => text "Content cannot be parsed: \{ctx.request.body}" ctx >>= status BAD_REQUEST)
