@@ -49,8 +49,9 @@ curl:
 	$(CURLIE) --retry-connrefused \
 		--retry 5 \
 		--retry 3 \
-      --retry-max-time 30
-		-j POST :3000/games/newGame startingParticipantId:=1 title="another game" stocks:='["sweden", "ireland", "france"]'
+      --retry-max-time 30 \
+		-j POST :3000/games/newGame \
+		startingParticipantId:=1 title="another game" stocks:='["sweden", "ireland", "france"]'
 	@echo
 	@echo
 	$(CURLIE) :3000/games
