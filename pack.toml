@@ -3,3 +3,16 @@ type = "github"
 url  = "https://github.com/alexhumphreys/idris2-node-postgres"
 commit = "173d8b6148f639570a9c77f22355e72535ea15f6"
 ipkg = "idris2-node-postgres.ipkg"
+
+[custom.all.tyttp-json]
+type = "github"
+url  = "https://github.com/kbertalan/tyttp-json"
+commit = "58874acf612e4bed4594439599ee276f1a12cda0"
+ipkg = "tyttp-json.ipkg"
+
+[custom.all.tyttp]
+type = "github"
+url  = "https://github.com/kbertalan/tyttp"
+commit = "288c51f3d82dde1606e10f9e9a30f3f292f890df"
+ipkg = "tyttp.ipkg"
+

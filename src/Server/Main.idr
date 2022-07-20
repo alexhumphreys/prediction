@@ -1,32 +1,23 @@
 module Server.Main
 
-import Data.Buffer
 import Data.Buffer.Ext
-import Control.Monad.Trans
-import Control.Monad.Either
-import Control.Monad.Maybe
 import Node.HTTP.Client
 import Node.HTTP.Server
 import TyTTP.Adapter.Node.HTTP
 import TyTTP.Adapter.Node.URI
 import TyTTP.HTTP
-import TyTTP.HTTP.Consumer
 import TyTTP.HTTP.Consumer.JSON
 import TyTTP.HTTP.Producer.JSON
-import TyTTP.HTTP.Producer
-import TyTTP.HTTP.Routing
 import TyTTP.URL
-import TyTTP.URL.Path
-import TyTTP.URL.Search
 
 import PG.Postgres
 import PG.Promise
 import PG.Util
 import Debug.Trace
 
-import Data.List.Quantifiers
 import Generics.Derive
 import JSON
+
 import Server.Types
 
 %language ElabReflection
@@ -203,28 +194,28 @@ main = eitherT putStrLn pure $ do
   http <- HTTP.require
   ignore $ HTTP.listen {e=NodeError} http options
       -- $ (\next, ctx => mapFailure Node.Error.message (next ctx))
-      $ decodeUri' (text "URI decode has failed" >=> status BAD_REQUEST)
-      $ parseUrl' (const $ text "URL has invalid format" >=> status BAD_REQUEST)
-      :> routes' (text "Resource could not be found" >=> status NOT_FOUND)
+      $ decodeUri' (sendText "URI decode has failed" >=> status BAD_REQUEST)
+      $ parseUrl' (const $ sendText "URL has invalid format" >=> status BAD_REQUEST)
+      :> routes' (sendText "Resource could not be found" >=> status NOT_FOUND)
           [  post
-              $ path "/games/newGame"
+              $ pattern "/games/newGame"
               $ consumes' [JSON]
-                  (\ctx => text "Content cannot be parsed: \{ctx.request.body}" ctx >>= status BAD_REQUEST)
+                  (\ctx => sendText "Content cannot be parsed: \{ctx.request.body}" ctx >>= status BAD_REQUEST)
               $ \ctx => do
                 let foo = ctx.request.body
                 let q = createGame pool foo
                 gameId <- transform q
-                text (show gameId) ctx >>= status CREATED
-          , get $ path "/games" :> \ctx => do
+                sendText (show gameId) ctx >>= status CREATED
+          , get $ pattern "/games" :> \ctx => do
               let games = fetchGames pool
               ret <- transform games
-              json ret ctx >>= status OK
-          , get $ path "/games/*" :> \ctx => do
+              sendJSON ret ctx >>= status OK
+          , get $ pattern "/games/*" :> \ctx => do
             let id = stringToMaybeNat ctx.request.url.path.rest
             case id of
-                 Nothing => text "invalid id" ctx >>= status BAD_REQUEST
+                 Nothing => sendText "invalid id" ctx >>= status BAD_REQUEST
                  (Just n) => do
                    let game = fetchGame pool (cast n)
                    ret <- transform game
-                   json ret ctx >>= status OK
+                   sendJSON ret ctx >>= status OK
           ]
