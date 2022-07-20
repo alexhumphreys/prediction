@@ -2,7 +2,7 @@ run:
 	PGUSER=postgres PGHOST=127.0.0.1 PGPASSWORD=admin PGDATABASE=foo PGPORT=5432 node ./build/exec/prediction
 
 repl:
-	rlwrap pack --with-ipkg config.ipkg --cg node repl ./src/Server/Main.idr
+	rlwrap pack --cg node repl ./src/Server/Main.idr
 
 .PHONY: build
 build:
@@ -14,7 +14,7 @@ clean:
 	rm -r ./build
 
 repl-spa:
-	rlwrap -n pack --with-ipkg ./spa.ipkg --cg javascript repl ./src/Frontend/Main.idr
+	rlwrap -n pack --cg javascript repl ./src/Frontend/Main.idr
 
 server:
 	pack --cg node build ./config.ipkg

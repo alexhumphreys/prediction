@@ -1,4 +1,4 @@
-module Server.Types
+module Types
 
 import Data.Buffer
 import Control.Monad.Trans
@@ -20,7 +20,7 @@ record Participant where
   userId : Int
   money : Int
 
-%runElab derive "Participant" [Generic, Meta, Show, Eq, RecordToJSON]
+%runElab derive "Participant" [Generic, Meta, Show, Eq, RecordToJSON, RecordFromJSON]
 
 public export
 record Stock where
@@ -29,7 +29,7 @@ record Stock where
   gameId : Int
   description : String
 
-%runElab derive "Stock" [Generic, Meta, Show, Eq, RecordToJSON]
+%runElab derive "Stock" [Generic, Meta, Show, Eq, RecordToJSON, RecordFromJSON]
 
 public export
 record GameStock where
@@ -39,7 +39,7 @@ record GameStock where
   stockId : Int
   amount : Int
 
-%runElab derive "GameStock" [Generic, Meta, Show, Eq, RecordToJSON]
+%runElab derive "GameStock" [Generic, Meta, Show, Eq, RecordToJSON, RecordFromJSON]
 
 public export
 record StockState where
@@ -48,7 +48,7 @@ record StockState where
   description : String
   amount : Int
 
-%runElab derive "StockState" [Generic, Meta, Show, Eq, RecordToJSON]
+%runElab derive "StockState" [Generic, Meta, Show, Eq, RecordToJSON, RecordFromJSON]
 
 public export
 record GameState where
@@ -58,7 +58,7 @@ record GameState where
   stockState : List StockState
   participatns : List Participant
 
-%runElab derive "GameState" [Generic, Meta, Show, Eq, RecordToJSON]
+%runElab derive "GameState" [Generic, Meta, Show, Eq, RecordToJSON, RecordFromJSON]
 
 public export
 record GameShort where
@@ -66,7 +66,7 @@ record GameShort where
   id : Int
   title : String
 
-%runElab derive "GameShort" [Generic, Meta, Show, Eq, RecordToJSON]
+%runElab derive "GameShort" [Generic, Meta, Show, Eq, RecordToJSON, RecordFromJSON]
 
 public export
 record GamePayload where

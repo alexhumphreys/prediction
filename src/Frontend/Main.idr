@@ -1,4 +1,4 @@
-module Frontend.Main
+module Main
 
 import Rhone.JS
 import Data.List1
@@ -7,6 +7,8 @@ import Data.MSF.Switch
 import Text.CSS
 import Generics.Derive
 import JSON
+
+import Types
 
 %default total
 
@@ -38,15 +40,6 @@ record ParticipantCard where
   remaining : Nat
 
 %runElab derive "ParticipantCard" [Generic, Meta, Show, Eq, RecordToJSON, RecordFromJSON]
-
-record Participant where
-  constructor MkParticpant
-  id : Nat
-  name : String
-  money : Nat
-  cards : List ParticipantCard
-
-%runElab derive "Participant" [Generic, Meta, Show, Eq, RecordToJSON, RecordFromJSON]
 
 record Move where
   constructor MkMove

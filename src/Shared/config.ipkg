@@ -1,4 +1,4 @@
-package prediction
+package shared
 -- version =
 -- authors =
 -- maintainers =
@@ -13,25 +13,26 @@ package prediction
 -- langversion
 
 -- packages to add to search path
-depends = contrib
-  , tyttp
+depends =
+    contrib
+  -- , tyttp
   , elab-util
   , sop
   , json
-  , tyttp-json
-  , apache-mime-types
-  , idris2-node-postgres
+  -- , tyttp-json
+  -- , apache-mime-types
+  -- , idris2-node-postgres
 
 -- modules to install
-modules = Server.Types
+modules = Types
 
 -- main file (i.e. file to load at REPL)
-main = Server.Main
+-- main =
 
 -- name of executable
-executable = prediction
+-- executable =
 -- opts =
-sourcedir = "./src"
+sourcedir = "./"
 -- builddir =
 -- outputdir =
 

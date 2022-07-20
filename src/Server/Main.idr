@@ -1,4 +1,4 @@
-module Server.Main
+module Main
 
 import Data.Buffer.Ext
 import Node.HTTP.Client
@@ -18,7 +18,7 @@ import Debug.Trace
 import Generics.Derive
 import JSON
 
-import Server.Types
+import Types
 
 %language ElabReflection
 

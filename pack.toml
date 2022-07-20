@@ -1,3 +1,8 @@
+[custom.all.shared]
+type = "local"
+path = "./src/Shared"
+ipkg = "config.ipkg"
+
 [custom.all.idris2-node-postgres]
 type = "github"
 url  = "https://github.com/alexhumphreys/idris2-node-postgres"

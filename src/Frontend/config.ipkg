@@ -14,6 +14,7 @@ package prediction-spa
 
 -- packages to add to search path
 depends = base >= 0.5.1
+  , shared
   , contrib
   , dom
   , elab-util
@@ -24,16 +25,15 @@ depends = base >= 0.5.1
   , json
 
 -- modules to install
-modules = Frontend.Main,
-  Server.Types
+modules = Main
 
 -- main file (i.e. file to load at REPL)
-main = Frontend.Main
+main = Main
 
 -- name of executable
 executable = "spa.js"
 opts = "--cg javascript"
-sourcedir = "./src"
+sourcedir = "./"
 -- builddir =
 -- outputdir =
 

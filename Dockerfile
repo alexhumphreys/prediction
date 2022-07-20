@@ -15,19 +15,21 @@ RUN pack switch nightly-220716
 WORKDIR /opt/prediction
 
 COPY ./pack.toml .
-COPY ./config.ipkg .
+COPY ./src/Server/config.ipkg .
+COPY ./src/Shared ./src/Shared
 
 RUN pack install-deps ./config.ipkg
 
+RUN rm ./config.ipkg
 COPY src src
 
-RUN pack --cg node build ./config.ipkg
+RUN pack --cg node build ./src/Server/config.ipkg
 
 FROM node:16
 
 WORKDIR /opt/prediction
 
 COPY --from=build-node /opt/prediction/node_modules /opt/prediction/node_modules
-COPY --from=build /opt/prediction/build/exec/prediction /opt/prediction
+COPY --from=build /opt/prediction/src/Server/build/exec/prediction /opt/prediction
 
 CMD ["node", "./prediction"]
