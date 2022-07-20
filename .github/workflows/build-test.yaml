@@ -19,7 +19,7 @@ jobs:
             go install github.com/rs/curlie@latest
             echo $GOPATH
             ls $GOPATH
-            ls ~/go/
+            ls ~/go/bin
         - name: docker-compose run
           run: |
             docker compose build
