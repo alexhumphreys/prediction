@@ -1,3 +1,5 @@
+CURLIE ?= curlie
+
 run:
 	PGUSER=postgres PGHOST=127.0.0.1 PGPASSWORD=admin PGDATABASE=foo PGPORT=5432 node ./build/exec/prediction
 
@@ -44,13 +46,13 @@ repl-db:
 	pgcli --host 127.0.0.1 -u postgres -d foo
 
 curl:
-	curlie -j POST :3000/games/newGame startingParticipantId:=1 title="another game" stocks:='["sweden", "ireland", "france"]'
+	$(CURLIE) -j POST :3000/games/newGame startingParticipantId:=1 title="another game" stocks:='["sweden", "ireland", "france"]'
 	@echo
 	@echo
-	curlie :3000/games
+	$(CURLIE) :3000/games
 	@echo
 	@echo
-	curlie :3000/games/1
+	$(CURLIE) :3000/games/1
 
 restart-docker-compose:
 	docker compose down
