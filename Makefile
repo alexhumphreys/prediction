@@ -46,7 +46,11 @@ repl-db:
 	pgcli --host 127.0.0.1 -u postgres -d foo
 
 curl:
-	$(CURLIE) -j POST :3000/games/newGame startingParticipantId:=1 title="another game" stocks:='["sweden", "ireland", "france"]'
+	$(CURLIE) --retry-connrefused \
+		--retry 5 \
+		--retry 3 \
+      --retry-max-time 30
+		-j POST :3000/games/newGame startingParticipantId:=1 title="another game" stocks:='["sweden", "ireland", "france"]'
 	@echo
 	@echo
 	$(CURLIE) :3000/games
