@@ -17,6 +17,9 @@ jobs:
         - name: install curlie
           run: |
             go install github.com/rs/curlie@latest
+            echo $GOPATH
+            ls $GOPATH
+            ls ~/go/
         - name: docker-compose run
           run: |
             docker compose build
