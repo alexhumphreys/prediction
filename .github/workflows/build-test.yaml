@@ -26,4 +26,5 @@ jobs:
             docker compose up -d
         - name: make requests
           run: |
+            sleep 10
             CURLIE="~/go/bin/curlie" make curl
