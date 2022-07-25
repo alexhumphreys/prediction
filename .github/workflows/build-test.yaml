@@ -17,10 +17,14 @@ jobs:
         - name: install curlie
           run: |
             go install github.com/rs/curlie@latest
+            echo $GOPATH
+            ls $GOPATH
+            ls ~/go/bin
         - name: docker-compose run
           run: |
             docker compose build
             docker compose up -d
         - name: make requests
           run: |
-            make curl
+            sleep 10
+            CURLIE="~/go/bin/curlie" make curl
