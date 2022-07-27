@@ -1,6 +1,8 @@
 module Main
 
 import Data.Buffer.Ext
+import Promise
+
 import Node.HTTP.Client
 import Node.HTTP.Server
 import TyTTP.Adapter.Node.HTTP
@@ -10,9 +12,8 @@ import TyTTP.HTTP.Consumer.JSON
 import TyTTP.HTTP.Producer.JSON
 import TyTTP.URL
 
+
 import PG.Postgres
-import PG.Promise
-import PG.Util
 import Debug.Trace
 
 import Generics.Derive
@@ -51,13 +52,17 @@ stocksToSQL : Int -> List String -> String
 stocksToSQL gameId strs = concat $ intersperse ", " $
                           map (\s => "(\{show gameId}, '\{s}')") strs
 
-createParticipants : FromString e => Pool -> Int -> PG.Promise.Promise e IO ()
+createParticipants : FromString e => Pool -> Int -> Promise e IO ()
 createParticipants pool gameId = do
   _ <- query pool "INSERT INTO participants(gameId, userId, money) VALUES (\{show gameId},1,100) RETURNING id;"
   _ <- query pool "INSERT INTO participants(gameId, userId, money) VALUES (\{show gameId},2,100) RETURNING id;"
   pure ()
 
-createGameStocks : FromString e => Pool -> Int -> List String -> PG.Promise.Promise e IO ()
+export
+lift : a -> Promise e m a
+lift = succeed
+
+createGameStocks : FromString e => Pool -> Int -> List String -> Promise e IO ()
 createGameStocks pool gameId [] = pure ()
 createGameStocks pool gameId (x :: xs) = do
   resId <- query pool "INSERT INTO stocks(gameId, description) VALUES (\{show gameId}, '\{x}') RETURNING id;"
@@ -65,7 +70,7 @@ createGameStocks pool gameId (x :: xs) = do
   ignore $ query pool "INSERT INTO gameStocks(gameId, stockId, amount) VALUES (\{show gameId}, \{show stockId}, 10) RETURNING id;"
   createGameStocks pool gameId xs
 
-createGame : FromString e => Pool -> GamePayload -> PG.Promise.Promise e IO (Int)
+createGame : FromString e => Pool -> GamePayload -> Promise e IO (Int)
 createGame pool (MkGamePayload startingParticipantId title stocks) = do
   -- BAD: vulnerable to SQL injection
   -- need to work out how to pass a HList to the FFI
@@ -75,7 +80,6 @@ createGame pool (MkGamePayload startingParticipantId title stocks) = do
   createGameStocks pool id stocks
   createParticipants pool id
   pure $ trace "created game \{show id}" id
-
 
 try : ((us : List Universe) -> (RowU us) -> Maybe z)
     -> (us : List Universe ** List (Row (RowTypes us))) -> Maybe (List z)
@@ -110,14 +114,14 @@ where
   stockFromRow ([Num, Num, Str]) ([x, y, z]) = Just $ MkStock (cast x) (cast y) (cast z)
   stockFromRow _ _ = Nothing
 
-fetchStocks : FromString e =>  Pool -> List GameStock -> PG.Promise.Promise e IO (List Stock)
+fetchStocks : FromString e =>  Pool -> List GameStock -> Promise e IO (List Stock)
 fetchStocks pool [] = pure []
 fetchStocks pool ((MkGameStock id gameId stockId amount) :: xs) = do
   resStock <- query pool "SELECT * FROM stocks WHERE id=\{show id};"
   Just stock <- lift $ getStock resStock | Nothing => reject $ fromString "couldn't parse stock \{show id}"
   pure $ stock :: !(fetchStocks pool xs)
 
-fetchParticipants : FromString e =>  Pool -> GameShort -> PG.Promise.Promise e IO (List Participant)
+fetchParticipants : FromString e =>  Pool -> GameShort -> Promise e IO (List Participant)
 fetchParticipants pool (MkGameShort id title) = do
   resParticipants <- query pool "SELECT * FROM participants WHERE gameId=\{show id};"
   Just participants <- lift $ getParticipants resParticipants | Nothing => reject $ fromString "couldn't parse participants for gameId: \{show id}"
@@ -139,7 +143,7 @@ mkStockStates ((MkGameStock id gameId stockId amount) :: xs) ys =
 mkGameState : GameShort -> List GameStock -> List Stock -> List Participant -> GameState
 mkGameState (MkGameShort id title) xs ys zs = MkGameState id title (mkStockStates xs ys) zs
 
-fetchGame : FromString e => Pool -> Int -> PG.Promise.Promise e IO (GameState)
+fetchGame : FromString e => Pool -> Int -> Promise e IO (GameState)
 fetchGame pool i = do
   resGame <- query pool "SELECT id,title FROM games WHERE id=\{show i};"
   Just game <- lift $ getGame resGame | Nothing => reject $ fromString "couldn't parse game \{show i}"
@@ -149,17 +153,19 @@ fetchGame pool i = do
   participants <- fetchParticipants pool game
   pure $ mkGameState game gameStocks stocks participants
 
-fetchGames : FromString e => Pool -> PG.Promise.Promise e IO (List GameShort)
+fetchGames : FromString e => Pool -> Promise e IO (List GameShort)
 fetchGames pool = do
   resId <- query pool "SELECT id,title FROM games;"
   Just games <- lift $ getGames resId | Nothing => reject $ fromString "couldn't parse list of games"
   pure games
 
-transform : MonadPromise e n m => PG.Promise.Promise e n a -> m a
+{-
+transform : MonadPromise e n m => Promise e n a -> m a
 -- short form
 -- transform = Core.Promise.promise . PG.Promise.resolve
 transform x = Core.Promise.promise $ \resolve', reject' =>
   PG.Promise.resolve x resolve' reject'
+  -}
 
 options : Error e => Options e
 options = MkOptions
@@ -202,20 +208,22 @@ main = eitherT putStrLn pure $ do
               $ consumes' [JSON]
                   (\ctx => sendText "Content cannot be parsed: \{ctx.request.body}" ctx >>= status BAD_REQUEST)
               $ \ctx => do
-                let foo = ctx.request.body
-                let q = createGame pool foo
-                gameId <- transform q
-                sendText (show gameId) ctx >>= status CREATED
+                let body = ctx.request.body
+                gameId <- resolve $ createGame pool body
+                -- sendText (show gameId) ctx >>= status CREATED
+                ?hole1
           , get $ pattern "/games" :> \ctx => do
               let games = fetchGames pool
-              ret <- transform games
-              sendJSON ret ctx >>= status OK
+              -- ret <- transform games
+              -- sendJSON ret ctx >>= status OK
+              ?hole2
           , get $ pattern "/games/*" :> \ctx => do
             let id = stringToMaybeNat ctx.request.url.path.rest
             case id of
                  Nothing => sendText "invalid id" ctx >>= status BAD_REQUEST
                  (Just n) => do
                    let game = fetchGame pool (cast n)
-                   ret <- transform game
-                   sendJSON ret ctx >>= status OK
+                   -- ret <- transform game
+                   -- sendJSON ret ctx >>= status OK
+                   ?hole3
           ]

@@ -22,6 +22,7 @@ depends = contrib
   , tyttp-json
   , apache-mime-types
   , idris2-node-postgres
+  , promise
 
 -- modules to install
 -- modules =
