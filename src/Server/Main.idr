@@ -153,19 +153,11 @@ fetchGame pool i = do
   participants <- fetchParticipants pool game
   pure $ mkGameState game gameStocks stocks participants
 
-fetchGames : FromString e => Pool -> Promise e IO (List GameShort)
+fetchGames : Pool -> Promise String IO (List GameShort)
 fetchGames pool = do
   resId <- query pool "SELECT id,title FROM games;"
-  Just games <- lift $ getGames resId | Nothing => reject $ fromString "couldn't parse list of games"
+  Just games <- lift $ getGames resId | Nothing => reject $ "couldn't parse list of games"
   pure games
-
-{-
-transform : MonadPromise e n m => Promise e n a -> m a
--- short form
--- transform = Core.Promise.promise . PG.Promise.resolve
-transform x = Core.Promise.promise $ \resolve', reject' =>
-  PG.Promise.resolve x resolve' reject'
-  -}
 
 options : Error e => Options e
 options = MkOptions
@@ -203,18 +195,16 @@ main = eitherT putStrLn pure $ do
       $ decodeUri' (sendText "URI decode has failed" >=> status BAD_REQUEST)
       $ parseUrl' (const $ sendText "URL has invalid format" >=> status BAD_REQUEST)
       :> routes' (sendText "Resource could not be found" >=> status NOT_FOUND)
-          [  post
+          [ post
               $ pattern "/games/newGame"
               $ consumes' [JSON]
                   (\ctx => sendText "Content cannot be parsed: \{ctx.request.body}" ctx >>= status BAD_REQUEST)
               $ \ctx => do
                 let body = ctx.request.body
-                gameId <- resolve $ createGame pool body
-                -- sendText (show gameId) ctx >>= status CREATED
-                ?hole1
+                gameId <- liftPromise $ createGame pool body
+                sendText (show gameId) ctx >>= status CREATED
           , get $ pattern "/games" :> \ctx => do
-              let games = fetchGames pool
-              -- ret <- transform games
+              games <- liftPromise $ fetchGames pool
               -- sendJSON ret ctx >>= status OK
               ?hole2
           , get $ pattern "/games/*" :> \ctx => do

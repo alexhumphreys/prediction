@@ -10,3 +10,9 @@ type = "github"
 url  = "https://github.com/alexhumphreys/idris2-node-postgres"
 commit = "9779f5c3b992ae9030125ba10bf92a0db727f864"
 ipkg = "idris2-node-postgres.ipkg"
+
+[custom.all.promise]
+type = "github"
+url  = "https://github.com/kbertalan/idris2-promise"
+commit = "116a4c054d8b767d8b29d661b6222ede0571e800"
+ipkg = "promise.ipkg"
