@@ -7,10 +7,10 @@ COPY ./package-lock.json .
 
 RUN npm install
 
-FROM ghcr.io/stefan-hoeck/idris2-pack:nightly-220724 as build
+FROM ghcr.io/stefan-hoeck/idris2-pack:nightly-220729 as build
 
 RUN pack update-db
-RUN pack switch nightly-220724
+RUN pack switch nightly-220729
 
 WORKDIR /opt/prediction
 
