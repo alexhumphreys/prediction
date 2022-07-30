@@ -143,7 +143,7 @@ mkStockStates ((MkGameStock id gameId stockId amount) :: xs) ys =
 mkGameState : GameShort -> List GameStock -> List Stock -> List Participant -> GameState
 mkGameState (MkGameShort id title) xs ys zs = MkGameState id title (mkStockStates xs ys) zs
 
-fetchGame : FromString e => Pool -> Int -> Promise e IO (GameState)
+fetchGame : Pool -> Int -> Promise NodeError IO (GameState)
 fetchGame pool i = do
   resGame <- query pool "SELECT id,title FROM games WHERE id=\{show i};"
   Just game <- lift $ getGame resGame | Nothing => reject $ fromString "couldn't parse game \{show i}"
@@ -153,7 +153,7 @@ fetchGame pool i = do
   participants <- fetchParticipants pool game
   pure $ mkGameState game gameStocks stocks participants
 
-fetchGames : Pool -> Promise String IO (List GameShort)
+fetchGames : Pool -> Promise NodeError IO (List GameShort)
 fetchGames pool = do
   resId <- query pool "SELECT id,title FROM games;"
   Just games <- lift $ getGames resId | Nothing => reject $ "couldn't parse list of games"
@@ -205,15 +205,12 @@ main = eitherT putStrLn pure $ do
                 sendText (show gameId) ctx >>= status CREATED
           , get $ pattern "/games" :> \ctx => do
               games <- liftPromise $ fetchGames pool
-              -- sendJSON ret ctx >>= status OK
-              ?hole2
+              sendJSON games ctx >>= status OK
           , get $ pattern "/games/*" :> \ctx => do
             let id = stringToMaybeNat ctx.request.url.path.rest
             case id of
                  Nothing => sendText "invalid id" ctx >>= status BAD_REQUEST
                  (Just n) => do
-                   let game = fetchGame pool (cast n)
-                   -- ret <- transform game
-                   -- sendJSON ret ctx >>= status OK
-                   ?hole3
+                   game <- liftPromise $ fetchGame pool (cast n)
+                   sendJSON game ctx >>= status OK
           ]

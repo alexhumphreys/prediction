@@ -7,20 +7,22 @@ COPY ./package-lock.json .
 
 RUN npm install
 
-FROM ghcr.io/stefan-hoeck/idris2-pack:nightly-220716 as build
+FROM ghcr.io/stefan-hoeck/idris2-pack:nightly-220724 as build
 
 RUN pack update-db
-RUN pack switch nightly-220716
+RUN pack switch nightly-220724
 
 WORKDIR /opt/prediction
 
+RUN mkdir -p ./src/Server/
+
 COPY ./pack.toml .
-COPY ./src/Server/config.ipkg .
+COPY ./src/Server/config.ipkg ./src/Server/config.ipkg
 COPY ./src/Shared ./src/Shared
 
-RUN pack install-deps ./config.ipkg
+RUN pack install-deps ./src/Server/config.ipkg
 
-RUN rm ./config.ipkg
+RUN rm ./src/Server/config.ipkg
 COPY src src
 
 RUN pack --cg node build ./src/Server/config.ipkg
