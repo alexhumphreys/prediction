@@ -67,15 +67,6 @@ record Board where
 
 %runElab derive "Board" [Generic, Meta, Show, Eq, RecordToJSON, RecordFromJSON]
 
-record Game where
-  constructor MkGame
-  id : Nat
-  participantStartedId : Nat
-  board : Board
-  participants : List Participant
-
-%runElab derive "Game" [Generic, Meta, Show, Eq, RecordToJSON, RecordFromJSON]
-
 %foreign """
 browser:lambda:(url,body,h,w,e,y)=>{
   fetch(url, {
@@ -228,7 +219,7 @@ data Ev' : Type where
 
   MovesLoaded : List Move -> Ev'
   ParticipantsLoaded : List Participant -> Ev'
-  GameLoaded : Game -> Ev'
+  GameLoaded : GameState -> Ev'
 
   ||| An ajax call returned a list of todos
   SingleLoaded : Todo -> Ev'
@@ -300,10 +291,10 @@ fetchParseEvent url ev = do
 -- events in question:
 onInit : MSF M' (NP I []) ()
 onInit = arrM $ \_ => do
-  fetchParseEvent {a=List Todo} "https://jsonplaceholder.typicode.com/todos" ListLoaded
-  fetchParseEvent {a=List Move} "http://localhost:3000/moves" MovesLoaded
+  -- fetchParseEvent {a=List Todo} "https://jsonplaceholder.typicode.com/todos" ListLoaded
+  -- fetchParseEvent {a=List Move} "http://localhost:3000/moves" MovesLoaded
   -- fetchParseEvent {a=List Participant} "http://localhost:3000/participants" ParticipantsLoaded
-  fetchParseEvent {a=Game} "http://localhost:3000/games/1" GameLoaded
+  fetchParseEvent {a=GameState} "http://localhost:3000/games/1" GameLoaded
 -- invoke `get` with the correct URL
 
 -- prints the list to the UI.
@@ -341,14 +332,17 @@ onParticipantsLoaded = do
 gameDiv : ElemRef HTMLDivElement
 gameDiv = Id Div "\{aPrefix}_game"
 
-onGameLoaded : MSF M' (NP I [Game]) ()
+onGameLoaded : MSF M' (NP I [GameState]) ()
 onGameLoaded = do
   arrM $ \[game] => do
     innerHtmlAt gameDiv gameContainer
-    innerHtmlAt boardDiv $ renderBoard $ board game
-    innerHtmlAt participantsDiv' $ renderParticipants $ participants game
-    innerHtmlAt cardsDiv $ renderCards $ cards $ board game
+    innerHtmlAt gameStateDiv $ renderJson $ game
+    -- innerHtmlAt boardDiv $ renderBoard $ board game
+    -- innerHtmlAt participantsDiv' $ renderParticipants $ participants game
+    -- innerHtmlAt cardsDiv $ renderCards $ cards $ board game
 where
+  gameStateDiv : ElemRef HTMLDivElement
+  gameStateDiv = Id Div "\{aPrefix}_gameState"
   boardDiv : ElemRef HTMLDivElement
   boardDiv = Id Div "\{aPrefix}_board"
   participantsDiv' : ElemRef HTMLDivElement
@@ -359,6 +353,7 @@ where
   gameContainer =
     div [classes ["game", "l-flex"]]
       [ div [ref boardDiv] []
+      , div [ref gameStateDiv] []
       , div [ref participantsDiv'] []
       ]
   renderBoard : Board -> Node Ev'

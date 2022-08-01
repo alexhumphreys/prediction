@@ -22,7 +22,7 @@ server:
 	pack --cg node build ./config.ipkg
 
 spa:
-	pack build ./spa.ipkg
+	pack build ./src/Frontend/config.ipkg
 	mkdir -p static/js
 	cp ./src/Frontend/build/exec/spa.js static/js/spa.js
 
@@ -50,14 +50,14 @@ curl:
 		--retry 5 \
 		--retry 3 \
       --retry-max-time 30 \
-		-j POST :3000/games/newGame \
+		-j POST :3001/games/newGame \
 		startingParticipantId:=1 title="another game" stocks:='["sweden", "ireland", "france"]'
 	@echo
 	@echo
-	$(CURLIE) :3000/games
+	$(CURLIE) :3001/games
 	@echo
 	@echo
-	$(CURLIE) :3000/games/1
+	$(CURLIE) :3001/games/1
 
 restart-docker-compose:
 	docker compose down
