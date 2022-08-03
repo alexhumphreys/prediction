@@ -457,7 +457,6 @@ where
       , button [ref btnCreate] ["Create Game"]
       ]
 
-{-
 postGame : ToJSON t => String -> t -> M' ()
 
 onClickCreate : MSF M' () ()
@@ -468,7 +467,6 @@ onClickCreate = arrM $ \_ => do
   -- stocks' <- valueOf txtStocks
   postGame "http://\{server}/games" (MkGamePayload 1 ?title2 ?stocks1)
   fireEv (Info "create game clicked!")
-  -}
 
 -- cardId=1 gameId=1 participantId=1 type=buy state=processed
 record PostMove where
