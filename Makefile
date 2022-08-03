@@ -9,8 +9,8 @@ repl:
 .PHONY: build
 build:
 	npm install
-	pack --cg node build ./config.ipkg
-	chmod +x ./build/exec/prediction
+	pack --cg node build ./src/Server/config.ipkg
+	chmod +x ./src/Server/build/exec/prediction
 
 clean:
 	rm -r ./build
@@ -50,16 +50,31 @@ curl:
 		--retry 5 \
 		--retry 3 \
       --retry-max-time 30 \
-		-j POST :3001/games/newGame \
+		-j POST :3000/games/newGame \
 		startingParticipantId:=1 title="another game" stocks:='["sweden", "ireland", "france"]'
 	@echo
 	@echo
-	$(CURLIE) :3001/games
+	$(CURLIE) :3000/games
 	@echo
 	@echo
-	$(CURLIE) :3001/games/1
+	$(CURLIE) :3000/games/1
 
 restart-docker-compose:
+	docker rm -f some-postgres
 	docker compose down
 	docker compose build
 	docker compose up
+
+run-node:
+	export PGUSER=postgres PGHOST=postgres PGPASSWORD=admin PGDATABASE=foo PGPORT=5432
+	node ./src/Server/build/exec/prediction
+
+local-deps-teardown:
+	docker compose down
+	docker rm -f some-postgres
+	nginx -s stop || true
+
+local-setup: build spa local-deps-teardown
+	make run-db
+	make nginx
+	make run-node

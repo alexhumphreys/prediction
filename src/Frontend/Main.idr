@@ -14,6 +14,9 @@ import Types
 
 %language ElabReflection
 
+server : String
+server = "localhost:8080"
+
 record FetchResponse where
   constructor MkFetchResponse
   url : Nat
@@ -294,7 +297,7 @@ onInit = arrM $ \_ => do
   -- fetchParseEvent {a=List Todo} "https://jsonplaceholder.typicode.com/todos" ListLoaded
   -- fetchParseEvent {a=List Move} "http://localhost:3000/moves" MovesLoaded
   -- fetchParseEvent {a=List Participant} "http://localhost:3000/participants" ParticipantsLoaded
-  fetchParseEvent {a=GameState} "http://localhost:3000/games/1" GameLoaded
+  fetchParseEvent {a=GameState} "http://\{server}/games/1" GameLoaded
 -- invoke `get` with the correct URL
 
 -- prints the list to the UI.
@@ -355,6 +358,7 @@ where
       [ div [ref boardDiv] []
       , div [ref gameStateDiv] []
       , div [ref participantsDiv'] []
+      , div [] []
       ]
   renderBoard : Board -> Node Ev'
   renderBoard x =
