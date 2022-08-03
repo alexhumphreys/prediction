@@ -12,7 +12,6 @@ import TyTTP.HTTP.Consumer.JSON
 import TyTTP.HTTP.Producer.JSON
 import TyTTP.URL
 
-
 import PG.Postgres
 import Debug.Trace
 
@@ -22,6 +21,27 @@ import JSON
 import Types
 
 %language ElabReflection
+
+%foreign """
+node:lambda: () => {
+  const { Pool, Client } = require('pg')
+  const pool = new Pool(
+  {
+    user: 'postgres',
+    host: '127.0.0.1',
+    database: 'foo',
+    password: 'admin',
+    port: 5432,
+  }
+  )
+  return pool
+}
+"""
+prim__get_pool_ : PrimIO Pool
+
+-- for querying
+getPool' : HasIO io => io Pool
+getPool' = primIO $ prim__get_pool_
 
 %foreign """
 node:lambda: (str) => { return {message: str, code: str, stack:""} }
@@ -188,8 +208,9 @@ stringToMaybeNat str =
 
 main : IO ()
 main = eitherT putStrLn pure $ do
-  pool <- getPool
+  pool <- getPool'
   http <- HTTP.require
+  putStrLn "starting server on port \{show $ port . listenOptions $ options {e=NodeError}}"
   ignore $ HTTP.listen {e=NodeError} http options
       -- $ (\next, ctx => mapFailure Node.Error.message (next ctx))
       $ decodeUri' (sendText "URI decode has failed" >=> status BAD_REQUEST)
