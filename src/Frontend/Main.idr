@@ -63,13 +63,6 @@ record BoardCard where
 
 %runElab derive "BoardCard" [Generic, Meta, Show, Eq, RecordToJSON, RecordFromJSON]
 
-record Board where
-  constructor MkBoard
-  id : Nat
-  cards : List BoardCard
-
-%runElab derive "Board" [Generic, Meta, Show, Eq, RecordToJSON, RecordFromJSON]
-
 %foreign """
 browser:lambda:(url,body,h,w,e,y)=>{
   fetch(url, {
@@ -223,6 +216,7 @@ data Ev' : Type where
   MovesLoaded : List Move -> Ev'
   ParticipantsLoaded : List Participant -> Ev'
   GameLoaded : GameState -> Ev'
+  GamesLoaded : List GameShort -> Ev'
 
   ||| An ajax call returned a list of todos
   SingleLoaded : Todo -> Ev'
@@ -256,12 +250,6 @@ listTodos' xs =
 M' : Type -> Type
 M' = DomIO Ev' JSIO
 
-parseResponse' : String -> Ev'
-parseResponse' str =
-  case decode {a=List Todo} str of
-       (Left x) => Err' "failed to parse json as Todo: \{str}"
-       (Right x) => ListLoaded x
-
 fireEv' : Nat -> Ev' -> M' ()
 fireEv' n ev = do
   h <- handler <$> env
@@ -278,16 +266,16 @@ handleError str =
        (Left x) =>  Err' "Fetch err: \{str}"
        (Right x) => Err' "Fetch err: \{show x}"
 
-parseType : FromJSON a => String -> (a -> Ev') -> Ev'
+parseType : FromJSON t => String -> (t -> Ev') -> Ev'
 parseType str ev =
-  case decode {a=a} str of
+  case decode {a=t} str of
        (Left x) => Err' "failed to parse json: \{str}"
        (Right x) => ev x
 
-fetchParseEvent : FromJSON a => String -> (a -> Ev') -> M' ()
+fetchParseEvent : FromJSON t => String -> (t -> Ev') -> M' ()
 fetchParseEvent url ev = do
     h <- handler <$> env
-    fetch url (\s => h (parseType {a=a} s ev)) (\e => h (handleError e))
+    fetch url (\s => h (parseType {t=t} s ev)) (\e => h (handleError e))
     pure ()
 
 -- below, I define some dummy MSFs for handling each of the
@@ -297,7 +285,8 @@ onInit = arrM $ \_ => do
   -- fetchParseEvent {a=List Todo} "https://jsonplaceholder.typicode.com/todos" ListLoaded
   -- fetchParseEvent {a=List Move} "http://localhost:3000/moves" MovesLoaded
   -- fetchParseEvent {a=List Participant} "http://localhost:3000/participants" ParticipantsLoaded
-  fetchParseEvent {a=GameState} "http://\{server}/games/1" GameLoaded
+  fetchParseEvent {t=List GameShort} "http://\{server}/games" GamesLoaded
+  fetchParseEvent {t=GameState} "http://\{server}/games/1" GameLoaded
 -- invoke `get` with the correct URL
 
 -- prints the list to the UI.
@@ -332,6 +321,14 @@ onParticipantsLoaded = do
   arrM $ \[ms] => do
     innerHtmlAt listParticipantDiv $ renderListJson ms
 
+listGamesDiv : ElemRef HTMLDivElement
+listGamesDiv = Id Div "\{aPrefix}_listGames"
+
+onGamesLoaded : MSF M' (NP I [List GameShort]) ()
+onGamesLoaded = do
+  arrM $ \[ms] => do
+    innerHtmlAt listGamesDiv $ renderListJson ms
+
 gameDiv : ElemRef HTMLDivElement
 gameDiv = Id Div "\{aPrefix}_game"
 
@@ -360,9 +357,6 @@ where
       , div [ref participantsDiv'] []
       , div [] []
       ]
-  renderBoard : Board -> Node Ev'
-  renderBoard x =
-    div [ref cardsDiv] []
   btnBuy : Nat -> ElemRef HTMLButtonElement
   btnBuy n = Id Button "\{aPrefix}_buyCard\{show n}"
   btnSell : Nat -> ElemRef HTMLButtonElement
@@ -393,7 +387,7 @@ where
 onSingleLoaded : MSF M' (NP I [Todo]) ()
 onSingleLoaded = arrM $ (\[t] => do
   innerHtmlAt selectedTodoDiv $ selectedTodo' t
-  fetchParseEvent {a=User} "https://jsonplaceholder.typicode.com/users/\{show $ Main.Todo.userId t}" UserLoaded)
+  fetchParseEvent {t=User} "https://jsonplaceholder.typicode.com/users/\{show $ Main.Todo.userId t}" UserLoaded)
 where
   selectedTodo' : Todo -> Node Ev'
   selectedTodo' x =
@@ -405,7 +399,7 @@ where
 -- onSingleLoaded = arrM $ \[t] => innerHtmlAt selectedTodoDiv ...
 
 onSelected : MSF M' (NP I [Nat]) ()
-onSelected = arrM $ \[n] => fetchParseEvent {a=Todo} "https://jsonplaceholder.typicode.com/todos/\{show n}" SingleLoaded
+onSelected = arrM $ \[n] => fetchParseEvent {t=Todo} "https://jsonplaceholder.typicode.com/todos/\{show n}" SingleLoaded
 -- onSelected = arrM $ \[d] => -- invoke `get` with the correct URL
 
 onErr : MSF M' (NP I [String]) ()
@@ -435,13 +429,17 @@ div [ class ballsContent ]
     , canvas [ref out, width wcanvas, height wcanvas] []
     ]
     -}
+txtTitle : ElemRef HTMLInputElement
+txtTitle = Id Input "\{aPrefix}_newTitle"
+
+txtStocks : ElemRef HTMLInputElement
+txtStocks = Id Input "\{aPrefix}_newStocks"
+
 onClickAdd : MSF M' (NP I []) ()
 onClickAdd = arrM $ \_ => innerHtmlAt createTodoDiv renderForm
 where
   btnCreate : ElemRef HTMLButtonElement
   btnCreate = Id Button "\{aPrefix}_createTodo"
-  txtTitle : ElemRef HTMLInputElement
-  txtTitle = Id Input "\{aPrefix}_newTitle"
   lbl : (text: String) -> (class : String) -> Node ev
   lbl txt cl = label [] [Text txt]
 
@@ -450,11 +448,27 @@ where
     div []
       [ lbl "Title:" ""
       , input [ ref txtTitle
-              , placeholder "some title"
+              , placeholder "game title"
               ] []
-      , button [ref btnCreate] ["Create Todo"]
+      , lbl "Title:" ""
+      , input [ ref txtStocks
+              , placeholder "comma separated stocks"
+              ] []
+      , button [ref btnCreate] ["Create Game"]
       ]
--- invoke `get` with the correct URL
+
+{-
+postGame : ToJSON t => String -> t -> M' ()
+
+onClickCreate : MSF M' () ()
+onClickCreate = arrM $ \_ => do
+  let title' = Source.valueOf {m=M'} txtTitle
+  let stocks' = Source.valueOf {m=M'} txtStocks
+  -- title' <- valueOf txtStocks
+  -- stocks' <- valueOf txtStocks
+  postGame "http://\{server}/games" (MkGamePayload 1 ?title2 ?stocks1)
+  fireEv (Info "create game clicked!")
+  -}
 
 -- cardId=1 gameId=1 participantId=1 type=buy state=processed
 record PostMove where
@@ -468,7 +482,7 @@ record PostMove where
 %runElab derive "PostMove" [Generic, Meta, Show, Eq, RecordToJSON, RecordFromJSON]
 
 -- fetchParseEvent {a=List Move} "http://localhost:3000/moves" MovesLoaded
-postMove : ToJSON a => String -> a -> M' ()
+postMove : ToJSON t => String -> t -> M' ()
 postMove url body = do
     h <- handler <$> env
     fetchPost url body (\s => h Init') (\e => h (handleError e))
@@ -490,6 +504,7 @@ sf = toI . unSOP . from ^>> collect [ onInit
                                     , onMovesLoaded
                                     , onParticipantsLoaded
                                     , onGameLoaded
+                                    , onGamesLoaded
                                     , onSingleLoaded
                                     , onUserLoaded
                                     , onSelected
@@ -511,6 +526,7 @@ content' =
       [ div [ref gameDiv] []
       , div [ref listMoveDiv, class "game-moves"] []
       ]
+    , div [ref listGamesDiv] []
     , div [ref listTodoDiv] []
     , div [ref selectedTodoDiv] []
     , div [ref createTodoDiv] []
