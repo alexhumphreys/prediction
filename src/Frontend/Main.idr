@@ -1,6 +1,7 @@
 module Main
 
 import Rhone.JS
+import Control.Applicative.Syntax
 import Data.List1
 import Data.String
 import Data.MSF.Switch
@@ -231,12 +232,17 @@ data Ev' : Type where
   ClickAdd' : Ev'
   ClickBuy : Nat -> Ev'
   ClickSell : Nat -> Ev'
+  ClickCreate : Ev'
 
   ||| Error
   Err' : String -> Ev'
   Info : String -> Ev'
 
-%runElab derive "Ev'" [Generic]
+  ||| Form
+  NewTitle : Ev'
+  NewStocks : Ev'
+
+%runElab derive "Ev'" [Generic,Meta,Show,Eq]
 
 todoItem' : Todo -> Node Ev'
 todoItem' x =
@@ -448,25 +454,52 @@ where
     div []
       [ lbl "Title:" ""
       , input [ ref txtTitle
+              , onInput (const NewTitle)
               , placeholder "game title"
               ] []
       , lbl "Title:" ""
       , input [ ref txtStocks
+              , onInput (const NewStocks)
               , placeholder "comma separated stocks"
               ] []
-      , button [ref btnCreate] ["Create Game"]
+      , button [ref btnCreate, onClick ClickAdd'] ["Create Game"]
       ]
 
-postGame : ToJSON t => String -> t -> M' ()
+read' : String -> Either String String
+read' "" = Left "Empty title string"
+read' s = Right s
 
-onClickCreate : MSF M' () ()
-onClickCreate = arrM $ \_ => do
-  let title' = Source.valueOf {m=M'} txtTitle
-  let stocks' = Source.valueOf {m=M'} txtStocks
-  -- title' <- valueOf txtStocks
-  -- stocks' <- valueOf txtStocks
-  postGame "http://\{server}/games" (MkGamePayload 1 ?title2 ?stocks1)
-  fireEv (Info "create game clicked!")
+readList : String -> Either String (List String)
+readList "" = Left "Empty stocks string"
+readList s = Right [s]
+
+postGame : ToJSON t => String -> t -> M' ()
+postGame url body = do
+    h <- handler <$> env
+    fetchPost url body (\s => h Init') (\e => h (handleError e))
+    pure ()
+
+doPost' : MSF M' (Either String GamePayload) ()
+doPost' = arrM $ \x => do
+  case x of
+       (Left y) => fireEv (Err' y)
+       (Right y) => do
+         postGame "http://\{server}/games" y
+         fireEv Init'
+
+onNewStocks : MSF M' (NP_ Type I []) ()
+onNewStocks = const ()
+
+onNewTitle : MSF M' (NP_ Type I []) ()
+onNewTitle = const ()
+
+readAll : MSF M' (NP_ Type I []) (Either String GamePayload)
+readAll = MkGamePayload 1
+  <$$> getInput [] read' txtTitle
+  <**> getInput [] readList txtStocks
+
+onClickCreate : MSF M' (NP_ Type I []) ()
+onClickCreate = readAll >>> doPost'
 
 -- cardId=1 gameId=1 participantId=1 type=buy state=processed
 record PostMove where
@@ -509,8 +542,11 @@ sf = toI . unSOP . from ^>> collect [ onInit
                                     , onClickAdd
                                     , onClickBuy
                                     , onClickSell
+                                    , onClickCreate
                                     , onErr
                                     , onInfo
+                                    , onNewTitle
+                                    , onNewStocks
                                     ]
 
 content' : Node Ev'
