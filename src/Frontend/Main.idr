@@ -172,6 +172,9 @@ selectedTodoDiv = Id Div "\{aPrefix}_selectedTodo"
 createTodoDiv : ElemRef HTMLDivElement
 createTodoDiv = Id Div "\{aPrefix}_createTodo"
 
+createFooDiv : ElemRef HTMLDivElement
+createFooDiv = Id Div "\{aPrefix}_createFooDiv"
+
 userDiv : ElemRef HTMLDivElement
 userDiv = Id Div "\{aPrefix}_user"
 
@@ -454,7 +457,6 @@ where
     div []
       [ lbl "Title:" ""
       , input [ ref txtTitle
-              , onInput (const NewTitle)
               , placeholder "game title"
               ] []
       , lbl "Title:" ""
@@ -462,7 +464,7 @@ where
               , onInput (const NewStocks)
               , placeholder "comma separated stocks"
               ] []
-      , button [ref btnCreate, onClick ClickAdd'] ["Create Game"]
+      , button [ref btnCreate, onClick ClickCreate] ["Create Game"]
       ]
 
 read' : String -> Either String String
