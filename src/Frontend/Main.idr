@@ -29,23 +29,6 @@ record FetchResponse where
 
 %runElab derive "FetchResponse" [Generic, Meta, Show, RecordToJSON, RecordFromJSON]
 
-record Todo where
-  constructor MkTodo
-  userId : Nat
-  id : Nat
-  title : String
-  completed : Bool
-
-%runElab derive "Todo" [Generic, Meta, Show, Eq, RecordToJSON, RecordFromJSON]
-
-record ParticipantCard where
-  constructor MkParticipantCard
-  id : Nat
-  description : String
-  remaining : Nat
-
-%runElab derive "ParticipantCard" [Generic, Meta, Show, Eq, RecordToJSON, RecordFromJSON]
-
 record Move where
   constructor MkMove
   id : Nat
@@ -56,14 +39,6 @@ record Move where
   state : String
 
 %runElab derive "Move" [Generic, Meta, Show, Eq, RecordToJSON, RecordFromJSON]
-
-record BoardCard where
-  constructor MkBoardCard
-  id : Nat
-  description : String
-  remaining : Nat
-
-%runElab derive "BoardCard" [Generic, Meta, Show, Eq, RecordToJSON, RecordFromJSON]
 
 %foreign """
 browser:lambda:(url,h,w,e,y)=>{
@@ -162,14 +137,8 @@ errorDiv = Id Div "\{aPrefix}_errorDiv"
 infoDiv : ElemRef HTMLDivElement
 infoDiv = Id Div "\{aPrefix}_infoDiv"
 
-listTodoDiv : ElemRef HTMLDivElement
-listTodoDiv = Id Div "\{aPrefix}_listTodo"
-
-selectedTodoDiv : ElemRef HTMLDivElement
-selectedTodoDiv = Id Div "\{aPrefix}_selectedTodo"
-
-createTodoDiv : ElemRef HTMLDivElement
-createTodoDiv = Id Div "\{aPrefix}_createTodo"
+createGameDiv : ElemRef HTMLDivElement
+createGameDiv = Id Div "\{aPrefix}_createGame"
 
 createFooDiv : ElemRef HTMLDivElement
 createFooDiv = Id Div "\{aPrefix}_createFooDiv"
@@ -179,16 +148,6 @@ userDiv = Id Div "\{aPrefix}_user"
 
 btn : ElemRef HTMLButtonElement
 btn = Id Button "my_button"
-
-||| The type of events our UI fires.
-||| This is either some data we get back from an ajax call
-||| or the click of a button.
-|||
-||| In addition, we define an `Init` event, which is fired after
-||| the UI has been setup. This will start the ajax request.
-
-todoItemRef : Nat -> ElemRef Div
-todoItemRef n = Id Div "todoItem\{show n}"
 
 coreCSS : List (Rule 1)
 coreCSS =
@@ -208,15 +167,6 @@ record User where
   email : String
 
 %runElab derive "User" [Generic, Meta, Show, Eq, RecordToJSON, RecordFromJSON]
-
-todoItem' : Todo -> Node Ev
-todoItem' x =
-  let todoId = Main.Todo.id x in
-  div [ref $ todoItemRef todoId, onClick $ Selected' todoId] [Text $ show $ todoId, Text $ title x]
-
-listTodos' : List Todo -> Node Ev
-listTodos' xs =
-  div [] $ map todoItem' xs
 
 M' : Type -> Type
 M' = DomIO Ev JSIO
@@ -272,13 +222,6 @@ onInit : MSF M' (NP I []) ()
 onInit = arrM $ \_ => do
   fetchParseEvent GetReq {t=List GameShort} "http://\{server}/games" GamesLoaded
   fetchParseEvent GetReq {t=GameState} "http://\{server}/games/1" GameLoaded
-
--- prints the list to the UI.
--- this requires a call to `innerHtmlAt` to set up the necessary event handlers
-onListLoaded : MSF M' (NP I [List Todo]) ()
-onListLoaded = do
-  arrM $ \[ts] => do
-    innerHtmlAt listTodoDiv $ listTodos' $ take 21 ts
 
 renderJson : ToJSON x => x -> Node Ev
 renderJson y = let json = encode y in
@@ -345,19 +288,6 @@ where
   btnBuy n = Id Button "\{aPrefix}_buyCard\{show n}"
   btnSell : Nat -> ElemRef HTMLButtonElement
   btnSell n = Id Button "\{aPrefix}_sellCard\{show n}"
-  renderCard : BoardCard -> Node Ev
-  renderCard (MkBoardCard id description remaining) =
-    div []
-      [ div [] [Text $ show $ id]
-      , div [] [Text description]
-      , div [] [Text $ show remaining]
-    --, button [ref btnRun, onClick Run, classes [widget,btn]] ["Run"]
-      , button [ref $ btnBuy id, onClick (ClickBuy id)] ["Buy"]
-      , button [ref $ btnSell id, onClick (ClickSell id)] ["Sell"]
-      ]
-  renderCards : List BoardCard -> Node Ev
-  renderCards ls =
-    div [] $ map renderCard ls
   renderParticipants : List Participant -> Node Ev
   renderParticipants ls = renderListJson ls
 
@@ -377,7 +307,6 @@ onErr = arrM $ \[s] => innerHtmlAt errorDiv $ renderErr' s
 where
   renderErr' : String -> Node Ev
   renderErr' x = div [] [Text x]
--- onErr = arrM $ \[s] => -- print error message to a UI element
 
 onInfo : MSF M' (NP I [String]) ()
 onInfo = arrM $ \[s] => innerHtmlAt errorDiv $ renderInfo s
@@ -385,20 +314,6 @@ where
   renderInfo : String -> Node Ev
   renderInfo x = div [] [Text x]
 
-{-
-div [ class ballsContent ]
-    [ lbl "Number of balls:" lblCount
-    , input [ ref txtCount
-            , onInput (const NumIn)
-            , onEnterDown Run
-            , class widget
-            , placeholder "Range: [1,1000]"
-            ] []
-    , button [ref btnRun, onClick Run, classes [widget,btn]] ["Run"]
-    , div [ref log] []
-    , canvas [ref out, width wcanvas, height wcanvas] []
-    ]
-    -}
 txtTitle : ElemRef HTMLInputElement
 txtTitle = Id Input "\{aPrefix}_newTitle"
 
@@ -407,9 +322,7 @@ txtStocks = Id Input "\{aPrefix}_newStocks"
 
 onClickAdd : MSF M' (NP I []) ()
 onClickAdd = arrM $ \_ => do
-             x <- innerHtmlAt createTodoDiv renderForm
-             ?foo
-             pure ()
+  innerHtmlAt createGameDiv renderForm
 where
   btnCreate : ElemRef HTMLButtonElement
   btnCreate = Id Button "\{aPrefix}_createGameButton"
@@ -438,31 +351,22 @@ readList : String -> Either String (List String)
 readList "" = Left "Empty stocks string"
 readList s = Right [s]
 
-postGame : ToJSON t => String -> t -> M' ()
-postGame url body = do
-    h <- handler <$> env
-    fetchPost url body (\s => h Init') (\e => h (handleError e))
-    pure ()
-
-doPost' : MSF M' (Either String GamePayload) ()
-doPost' = arrM $ \x => do
-  case x of
-       (Left y) => fireEv (Err' y)
-       (Right y) => do
-         -- postGame "http://\{server}/games/newGame" y
-         -- fireEv Init'
-         fetchParseEvent (PostReq y) {t=Nat} "http://\{server}/games/newGame" GameChanged
-
 readAll : MSF M' (NP_ Type I []) (Either String GamePayload)
 readAll = MkGamePayload 1
   <$$> getInput [] read' txtTitle
   <**> getInput [] readList txtStocks
 
 onClickCreate : MSF M' (NP_ Type I []) ()
-onClickCreate = readAll >>> doPost' >>> clearForm -- >>> reloadGames
+onClickCreate = readAll >>> postGame >>> clearForm
 where
+  postGame : MSF M' (Either String GamePayload) ()
+  postGame = arrM $ \x => do
+  case x of
+       (Left y) => fireEv (Err' y)
+       (Right y) => do
+         fetchParseEvent (PostReq y) {t=Nat} "http://\{server}/games/newGame" GameChanged
   clearForm : MSF M' _ ()
-  clearForm = arrM $ \_ => do innerHtmlAt createTodoDiv $ div [] []
+  clearForm = arrM $ \_ => do innerHtmlAt createGameDiv $ div [] []
   reloadGames : MSF M' _ ()
   reloadGames = do
     arrM $ \_ => do
@@ -524,10 +428,8 @@ content' =
       , div [ref listMoveDiv, class "game-moves"] []
       ]
     , div [ref listGamesDiv] []
-    , div [ref listTodoDiv] []
-    , div [ref selectedTodoDiv] []
-    , div [ref createTodoDiv] []
-    , button [ ref btn, onClick ClickAdd'] [ "Add todo" ]
+    , div [ref createGameDiv] []
+    , button [ ref btn, onClick ClickAdd'] [ "Open create game" ]
     ]
 
 ui' : M' (MSF M' Ev (), JSIO ())
