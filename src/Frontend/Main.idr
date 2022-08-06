@@ -65,6 +65,34 @@ record BoardCard where
 %runElab derive "BoardCard" [Generic, Meta, Show, Eq, RecordToJSON, RecordFromJSON]
 
 %foreign """
+browser:lambda:(url,h,w,e,y)=>{
+  fetch(url)
+    .then(response => {
+       if (!response.ok) {
+        w(JSON.stringify({
+          url: response.url,
+          status: response.status,
+          statusText: response.statusText,
+          redirected: response.redirected,
+          ok: response.ok,
+        }))(e);
+        throw new Error('Network response was not OK');
+       } else {
+         return response.json();
+       }
+    })
+    .then(json => {
+      h(JSON.stringify(json))(e);
+    })
+    .catch(error => {
+      w(error.message)(e)
+      console.error(error)
+    })
+}
+"""
+prim__fetch : String -> (String -> IO ()) -> (String -> IO ()) -> PrimIO ()
+
+%foreign """
 browser:lambda:(url,body,h,w,e,y)=>{
   fetch(url, {
     method: 'POST',
@@ -97,41 +125,11 @@ browser:lambda:(url,body,h,w,e,y)=>{
 """
 prim__fetchpost : String -> String -> (String -> IO ()) -> (String -> IO ()) -> PrimIO ()
 
-fetchPost : HasIO io => ToJSON x => String -> x -> (String -> JSIO ()) -> (String -> JSIO ()) -> io ()
-fetchPost url body run err = primIO $ prim__fetchpost url (encode body) (runJS . run) (runJS . err)
-
--- I set a timeout once the request has been received to make
--- it clearer how the UI behaves until then.
-%foreign """
-browser:lambda:(url,h,w,e,y)=>{
-  fetch(url)
-    .then(response => {
-       if (!response.ok) {
-        w(JSON.stringify({
-          url: response.url,
-          status: response.status,
-          statusText: response.statusText,
-          redirected: response.redirected,
-          ok: response.ok,
-        }))(e);
-        throw new Error('Network response was not OK');
-       } else {
-         return response.json();
-       }
-    })
-    .then(json => {
-      h(JSON.stringify(json))(e);
-    })
-    .catch(error => {
-      w(error.message)(e)
-      console.error(error)
-    })
-}
-"""
-prim__fetch : String -> (String -> IO ()) -> (String -> IO ()) -> PrimIO ()
-
 fetch : HasIO io => String -> (String -> JSIO ()) -> (String -> JSIO ()) -> io ()
 fetch url run err = primIO $ prim__fetch url (runJS . run) (runJS . err)
+
+fetchPost : HasIO io => ToJSON x => String -> x -> (String -> JSIO ()) -> (String -> JSIO ()) -> io ()
+fetchPost url body run err = primIO $ prim__fetchpost url (encode body) (runJS . run) (runJS . err)
 
 -- wait n milliseconds before running the given action
 %foreign "browser:lambda:(n,h,w)=>setTimeout(() => h(w),n)"
@@ -221,6 +219,7 @@ data Ev' : Type where
   ParticipantsLoaded : List Participant -> Ev'
   GameLoaded : GameState -> Ev'
   GamesLoaded : List GameShort -> Ev'
+  GameChanged : Nat -> Ev'
 
   ||| An ajax call returned a list of todos
   SingleLoaded : Todo -> Ev'
@@ -281,11 +280,24 @@ parseType str ev =
        (Left x) => Err' "failed to parse json: \{str}"
        (Right x) => ev x
 
-fetchParseEvent : FromJSON t => String -> (t -> Ev') -> M' ()
-fetchParseEvent url ev = do
+data ReqMethod : Type where
+  GetReq : ReqMethod
+  PostReq : ToJSON t => t -> ReqMethod
+
+fetchParseEvent : FromJSON t => ReqMethod -> String -> (t -> Ev') -> M' ()
+fetchParseEvent method url ev = do
     h <- handler <$> env
-    fetch url (\s => h (parseType {t=t} s ev)) (\e => h (handleError e))
-    pure ()
+    ignore $ fetch url (\s => h (parseType {t=t} s ev)) (\e => h (handleError e))
+    case method of
+         GetReq =>
+            ignore $ fetch url (\s => h (parseType {t=t} s ev)) (\e => h (handleError e))
+         (PostReq x) =>
+            ignore $ fetchPost url x (\s => h (parseType {t=t} s ev)) (\e => h (handleError e))
+
+onGameChanged : MSF M' (NP I [Nat]) ()
+onGameChanged = arrM $ \[i] => do
+  fetchParseEvent GetReq {t=GameState} "http://\{server}/games/\{show i}" GameLoaded
+  -- TODO fireEv (Err' y)
 
 -- below, I define some dummy MSFs for handling each of the
 -- events in question:
@@ -294,8 +306,8 @@ onInit = arrM $ \_ => do
   -- fetchParseEvent {a=List Todo} "https://jsonplaceholder.typicode.com/todos" ListLoaded
   -- fetchParseEvent {a=List Move} "http://localhost:3000/moves" MovesLoaded
   -- fetchParseEvent {a=List Participant} "http://localhost:3000/participants" ParticipantsLoaded
-  fetchParseEvent {t=List GameShort} "http://\{server}/games" GamesLoaded
-  fetchParseEvent {t=GameState} "http://\{server}/games/1" GameLoaded
+  fetchParseEvent GetReq {t=List GameShort} "http://\{server}/games" GamesLoaded
+  fetchParseEvent GetReq {t=GameState} "http://\{server}/games/1" GameLoaded
 -- invoke `get` with the correct URL
 
 -- prints the list to the UI.
@@ -396,7 +408,7 @@ where
 onSingleLoaded : MSF M' (NP I [Todo]) ()
 onSingleLoaded = arrM $ (\[t] => do
   innerHtmlAt selectedTodoDiv $ selectedTodo' t
-  fetchParseEvent {t=User} "https://jsonplaceholder.typicode.com/users/\{show $ Main.Todo.userId t}" UserLoaded)
+  fetchParseEvent GetReq {t=User} "https://jsonplaceholder.typicode.com/users/\{show $ Main.Todo.userId t}" UserLoaded)
 where
   selectedTodo' : Todo -> Node Ev'
   selectedTodo' x =
@@ -408,7 +420,7 @@ where
 -- onSingleLoaded = arrM $ \[t] => innerHtmlAt selectedTodoDiv ...
 
 onSelected : MSF M' (NP I [Nat]) ()
-onSelected = arrM $ \[n] => fetchParseEvent {t=Todo} "https://jsonplaceholder.typicode.com/todos/\{show n}" SingleLoaded
+onSelected = arrM $ \[n] => fetchParseEvent GetReq {t=Todo} "https://jsonplaceholder.typicode.com/todos/\{show n}" SingleLoaded
 -- onSelected = arrM $ \[d] => -- invoke `get` with the correct URL
 
 onErr : MSF M' (NP I [String]) ()
@@ -486,7 +498,8 @@ doPost' = arrM $ \x => do
   case x of
        (Left y) => fireEv (Err' y)
        (Right y) => do
-         postGame "http://\{server}/games" y
+        -- fetchParseEvent {a=Nat} "http://\{server}/games/newGame" ChangeGame
+         postGame "http://\{server}/games/newGame" y
          fireEv Init'
 
 onNewStocks : MSF M' (NP_ Type I []) ()
@@ -538,6 +551,7 @@ sf = toI . unSOP . from ^>> collect [ onInit
                                     , onParticipantsLoaded
                                     , onGameLoaded
                                     , onGamesLoaded
+                                    , onGameChanged
                                     , onSingleLoaded
                                     , onUserLoaded
                                     , onSelected
