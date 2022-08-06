@@ -253,8 +253,18 @@ listGamesDiv = Id Div "\{aPrefix}_listGames"
 
 onGamesLoaded : MSF M' (NP I [List GameShort]) ()
 onGamesLoaded = do
-  arrM $ \[ms] => do
-    innerHtmlAt listGamesDiv $ renderListJson ms
+  arrM $ \[gs] => do
+    innerHtmlAt listGamesDiv $ renderGames gs
+where
+  renderGameShort : GameShort -> Node Ev
+  renderGameShort (MkGameShort id title) =
+    div [onClick $ Selected' $ cast id]
+      [ Text $ show id
+      , Text $ title
+      ]
+  renderGames : List GameShort -> Node Ev
+  renderGames ls =
+    div [] $ map renderGameShort ls
 
 gameDiv : ElemRef HTMLDivElement
 gameDiv = Id Div "\{aPrefix}_game"
@@ -300,7 +310,7 @@ where
 
 onSelected : MSF M' (NP I [Nat]) ()
 onSelected = arrM $ \[n] =>
-  fetchParseEvent GetReq {t=GameState} "http://\{server}/games/1" GameLoaded
+  fetchParseEvent GetReq {t=GameState} "http://\{server}/games/\{show n}" GameLoaded
 
 onErr : MSF M' (NP I [String]) ()
 onErr = arrM $ \[s] => innerHtmlAt errorDiv $ renderErr' s
