@@ -425,7 +425,6 @@ where
               ] []
       , lbl "Title:" ""
       , input [ ref txtStocks
-              , onInput (const NewStocks)
               , placeholder "comma separated stocks"
               ] []
       , button [ref btnCreate, onClick ClickCreate] ["Create Game"]
@@ -453,12 +452,6 @@ doPost' = arrM $ \x => do
          -- postGame "http://\{server}/games/newGame" y
          -- fireEv Init'
          fetchParseEvent (PostReq y) {t=Nat} "http://\{server}/games/newGame" GameChanged
-
-onNewStocks : MSF M' (NP_ Type I []) ()
-onNewStocks = const ()
-
-onNewTitle : MSF M' (NP_ Type I []) ()
-onNewTitle = const ()
 
 readAll : MSF M' (NP_ Type I []) (Either String GamePayload)
 readAll = MkGamePayload 1
@@ -517,8 +510,6 @@ sf = toI . unSOP . from ^>> collect [ onInit
                                     , onClickCreate
                                     , onErr
                                     , onInfo
-                                    , onNewTitle
-                                    , onNewStocks
                                     ]
 
 content' : Node Ev

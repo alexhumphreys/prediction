@@ -32,8 +32,4 @@ data Ev : Type where
   Err' : String -> Ev
   Info : String -> Ev
 
-  ||| Form
-  NewTitle : Ev
-  NewStocks : Ev
-
 %runElab derive "Ev" [Generic,Meta,Show,Eq]
