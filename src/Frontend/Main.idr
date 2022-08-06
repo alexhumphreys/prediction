@@ -273,7 +273,7 @@ onGameLoaded : MSF M' (NP I [GameState]) ()
 onGameLoaded = do
   arrM $ \[game] => do
     innerHtmlAt gameDiv gameContainer
-    innerHtmlAt gameStateDiv $ renderJson $ game
+    innerHtmlAt gameStateDiv $ renderGameState $ game
     -- innerHtmlAt boardDiv $ renderBoard $ board game
     -- innerHtmlAt participantsDiv' $ renderParticipants $ participants game
     -- innerHtmlAt cardsDiv $ renderCards $ cards $ board game
@@ -298,8 +298,24 @@ where
   btnBuy n = Id Button "\{aPrefix}_buyCard\{show n}"
   btnSell : Nat -> ElemRef HTMLButtonElement
   btnSell n = Id Button "\{aPrefix}_sellCard\{show n}"
+  renderStockState : StockState -> List $ Node Ev
+  renderStockState (MkStockState stockId description amount) =
+    [ div [] [ Text $ show stockId]
+    , div [] [ Text $ description]
+    , div [] [ Text $ show amount]
+    , button [ref $ btnBuy $ cast stockId, onClick $ ClickBuy $ cast stockId] ["Buy"]
+    , button [ref $ btnSell $ cast stockId, onClick $ ClickSell $ cast stockId] ["Sell"]
+    ]
   renderParticipants : List Participant -> Node Ev
   renderParticipants ls = renderListJson ls
+  renderGameState : GameState -> Node Ev
+  renderGameState (MkGameState id title stocks participants) =
+    div []
+      [ div [] [ Text $ show id]
+      , div [] [ Text $ title]
+      , div [] $ map (\s => div [] $ renderStockState s) stocks
+      , div [] [ renderParticipants participants]
+      ]
 
 onUserLoaded : MSF M' (NP I [User]) ()
 onUserLoaded = arrM $ (\[u] => innerHtmlAt userDiv $ renderUser u)
@@ -402,12 +418,12 @@ postMove url body = do
 
 onClickBuy : MSF M' (NP I [Nat]) ()
 onClickBuy = arrM $ \[n] => do
-  postMove "http://localhost:3000/moves" (MkPostMove n 1 1 "buy" "processing")
+  postMove "http://\{server}/moves" (MkPostMove n 1 1 "buy" "processing")
   fireEv (Info "Buy clicked! id: \{show n}")
 
 onClickSell : MSF M' (NP I [Nat]) ()
 onClickSell = arrM $ \[n] => do
-  postMove "http://localhost:3000/moves" (MkPostMove n 1 1 "sell" "processing")
+  postMove "http://\{server}/moves" (MkPostMove n 1 1 "sell" "processing")
   fireEv (Info "Sell clicked! id: \{show n}")
 
 sf : MSF M' Ev ()
