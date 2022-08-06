@@ -498,9 +498,9 @@ doPost' = arrM $ \x => do
   case x of
        (Left y) => fireEv (Err' y)
        (Right y) => do
-        -- fetchParseEvent {a=Nat} "http://\{server}/games/newGame" ChangeGame
-         postGame "http://\{server}/games/newGame" y
-         fireEv Init'
+         -- postGame "http://\{server}/games/newGame" y
+         -- fireEv Init'
+         fetchParseEvent (PostReq y) {t=Nat} "http://\{server}/games/newGame" GameChanged
 
 onNewStocks : MSF M' (NP_ Type I []) ()
 onNewStocks = const ()
