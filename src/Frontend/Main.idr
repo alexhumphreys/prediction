@@ -10,6 +10,7 @@ import Generics.Derive
 import JSON
 
 import Types
+import Core.Ev
 
 %default total
 
@@ -208,73 +209,35 @@ record User where
 
 %runElab derive "User" [Generic, Meta, Show, Eq, RecordToJSON, RecordFromJSON]
 
-data Ev' : Type where
-  ||| Initial event
-  Init'     : Ev'
-
-  ||| An ajax call returned a list of todos
-  ListLoaded : List Todo -> Ev'
-
-  MovesLoaded : List Move -> Ev'
-  ParticipantsLoaded : List Participant -> Ev'
-  GameLoaded : GameState -> Ev'
-  GamesLoaded : List GameShort -> Ev'
-  GameChanged : Nat -> Ev'
-
-  ||| An ajax call returned a list of todos
-  SingleLoaded : Todo -> Ev'
-
-  ||| An ajax call returned a user
-  UserLoaded : User -> Ev'
-
-  ||| A single item in the todo list was selected
-  Selected' : Nat -> Ev'
-
-  ||| A single item in the todo list was selected
-  ClickAdd' : Ev'
-  ClickBuy : Nat -> Ev'
-  ClickSell : Nat -> Ev'
-  ClickCreate : Ev'
-
-  ||| Error
-  Err' : String -> Ev'
-  Info : String -> Ev'
-
-  ||| Form
-  NewTitle : Ev'
-  NewStocks : Ev'
-
-%runElab derive "Ev'" [Generic,Meta,Show,Eq]
-
-todoItem' : Todo -> Node Ev'
+todoItem' : Todo -> Node Ev
 todoItem' x =
   let todoId = Main.Todo.id x in
   div [ref $ todoItemRef todoId, onClick $ Selected' todoId] [Text $ show $ todoId, Text $ title x]
 
-listTodos' : List Todo -> Node Ev'
+listTodos' : List Todo -> Node Ev
 listTodos' xs =
   div [] $ map todoItem' xs
 
 M' : Type -> Type
-M' = DomIO Ev' JSIO
+M' = DomIO Ev JSIO
 
-fireEv' : Nat -> Ev' -> M' ()
+fireEv' : Nat -> Ev -> M' ()
 fireEv' n ev = do
   h <- handler <$> env
   setTimeout n (h ev)
   pure ()
 
-||| fire off random Ev'
-fireEv : Ev' -> M' ()
+||| fire off random Ev
+fireEv : Ev -> M' ()
 fireEv ev = fireEv' 0 ev
 
-handleError : String -> Ev'
+handleError : String -> Ev
 handleError str =
   case decode {a=FetchResponse} str of
        (Left x) =>  Err' "Fetch err: \{str}"
        (Right x) => Err' "Fetch err: \{show x}"
 
-parseType : FromJSON t => String -> (t -> Ev') -> Ev'
+parseType : FromJSON t => String -> (t -> Ev) -> Ev
 parseType str ev =
   case decode {a=t} str of
        (Left x) => Err' "failed to parse json: \{str}"
@@ -284,10 +247,9 @@ data ReqMethod : Type where
   GetReq : ReqMethod
   PostReq : ToJSON t => t -> ReqMethod
 
-fetchParseEvent : FromJSON t => ReqMethod -> String -> (t -> Ev') -> M' ()
+fetchParseEvent : FromJSON t => ReqMethod -> String -> (t -> Ev) -> M' ()
 fetchParseEvent method url ev = do
     h <- handler <$> env
-    ignore $ fetch url (\s => h (parseType {t=t} s ev)) (\e => h (handleError e))
     case method of
          GetReq =>
             ignore $ fetch url (\s => h (parseType {t=t} s ev)) (\e => h (handleError e))
@@ -303,12 +265,8 @@ onGameChanged = arrM $ \[i] => do
 -- events in question:
 onInit : MSF M' (NP I []) ()
 onInit = arrM $ \_ => do
-  -- fetchParseEvent {a=List Todo} "https://jsonplaceholder.typicode.com/todos" ListLoaded
-  -- fetchParseEvent {a=List Move} "http://localhost:3000/moves" MovesLoaded
-  -- fetchParseEvent {a=List Participant} "http://localhost:3000/participants" ParticipantsLoaded
   fetchParseEvent GetReq {t=List GameShort} "http://\{server}/games" GamesLoaded
   fetchParseEvent GetReq {t=GameState} "http://\{server}/games/1" GameLoaded
--- invoke `get` with the correct URL
 
 -- prints the list to the UI.
 -- this requires a call to `innerHtmlAt` to set up the necessary event handlers
@@ -317,12 +275,12 @@ onListLoaded = do
   arrM $ \[ts] => do
     innerHtmlAt listTodoDiv $ listTodos' $ take 21 ts
 
-renderJson : ToJSON x => x -> Node Ev'
+renderJson : ToJSON x => x -> Node Ev
 renderJson y = let json = encode y in
   div []
     [Text json]
 
-renderListJson : ToJSON x => List x -> Node Ev'
+renderListJson : ToJSON x => List x -> Node Ev
 renderListJson y = let ls = map encode y in
   div [] $ map (\s => div [] [Text s]) ls
 
@@ -370,7 +328,7 @@ where
   participantsDiv' = Id Div "\{aPrefix}_participants"
   cardsDiv : ElemRef HTMLDivElement
   cardsDiv = Id Div "\{aPrefix}_cards"
-  gameContainer : Node Ev'
+  gameContainer : Node Ev
   gameContainer =
     div [classes ["game", "l-flex"]]
       [ div [ref boardDiv] []
@@ -382,7 +340,7 @@ where
   btnBuy n = Id Button "\{aPrefix}_buyCard\{show n}"
   btnSell : Nat -> ElemRef HTMLButtonElement
   btnSell n = Id Button "\{aPrefix}_sellCard\{show n}"
-  renderCard : BoardCard -> Node Ev'
+  renderCard : BoardCard -> Node Ev
   renderCard (MkBoardCard id description remaining) =
     div []
       [ div [] [Text $ show $ id]
@@ -392,48 +350,34 @@ where
       , button [ref $ btnBuy id, onClick (ClickBuy id)] ["Buy"]
       , button [ref $ btnSell id, onClick (ClickSell id)] ["Sell"]
       ]
-  renderCards : List BoardCard -> Node Ev'
+  renderCards : List BoardCard -> Node Ev
   renderCards ls =
     div [] $ map renderCard ls
-  renderParticipants : List Participant -> Node Ev'
+  renderParticipants : List Participant -> Node Ev
   renderParticipants ls = renderListJson ls
 
 onUserLoaded : MSF M' (NP I [User]) ()
 onUserLoaded = arrM $ (\[u] => innerHtmlAt userDiv $ renderUser u)
 where
-  renderUser : User -> Node Ev'
+  renderUser : User -> Node Ev
   renderUser u = div []
     [Text $ User.name u, Text $ username u, Text $ email u]
 
-onSingleLoaded : MSF M' (NP I [Todo]) ()
-onSingleLoaded = arrM $ (\[t] => do
-  innerHtmlAt selectedTodoDiv $ selectedTodo' t
-  fetchParseEvent GetReq {t=User} "https://jsonplaceholder.typicode.com/users/\{show $ Main.Todo.userId t}" UserLoaded)
-where
-  selectedTodo' : Todo -> Node Ev'
-  selectedTodo' x =
-    let todoId = Main.Todo.id x in
-      div []
-        [ Text $ show $ todoId, Text $ title x, Text "Selected!"
-        , div [ref userDiv] []
-        ]
--- onSingleLoaded = arrM $ \[t] => innerHtmlAt selectedTodoDiv ...
-
 onSelected : MSF M' (NP I [Nat]) ()
-onSelected = arrM $ \[n] => fetchParseEvent GetReq {t=Todo} "https://jsonplaceholder.typicode.com/todos/\{show n}" SingleLoaded
--- onSelected = arrM $ \[d] => -- invoke `get` with the correct URL
+onSelected = arrM $ \[n] =>
+  fetchParseEvent GetReq {t=GameState} "http://\{server}/games/1" GameLoaded
 
 onErr : MSF M' (NP I [String]) ()
 onErr = arrM $ \[s] => innerHtmlAt errorDiv $ renderErr' s
 where
-  renderErr' : String -> Node Ev'
+  renderErr' : String -> Node Ev
   renderErr' x = div [] [Text x]
 -- onErr = arrM $ \[s] => -- print error message to a UI element
 
 onInfo : MSF M' (NP I [String]) ()
 onInfo = arrM $ \[s] => innerHtmlAt errorDiv $ renderInfo s
 where
-  renderInfo : String -> Node Ev'
+  renderInfo : String -> Node Ev
   renderInfo x = div [] [Text x]
 
 {-
@@ -464,7 +408,7 @@ where
   lbl : (text: String) -> (class : String) -> Node ev
   lbl txt cl = label [] [Text txt]
 
-  renderForm : Node Ev'
+  renderForm : Node Ev
   renderForm =
     div []
       [ lbl "Title:" ""
@@ -544,16 +488,13 @@ onClickSell = arrM $ \[n] => do
   postMove "http://localhost:3000/moves" (MkPostMove n 1 1 "sell" "processing")
   fireEv (Info "Sell clicked! id: \{show n}")
 
-sf : MSF M' Ev' ()
+sf : MSF M' Ev ()
 sf = toI . unSOP . from ^>> collect [ onInit
-                                    , onListLoaded
-                                    , onMovesLoaded
+                                    -- , onMovesLoaded
                                     , onParticipantsLoaded
                                     , onGameLoaded
                                     , onGamesLoaded
                                     , onGameChanged
-                                    , onSingleLoaded
-                                    , onUserLoaded
                                     , onSelected
                                     , onClickAdd
                                     , onClickBuy
@@ -565,7 +506,7 @@ sf = toI . unSOP . from ^>> collect [ onInit
                                     , onNewStocks
                                     ]
 
-content' : Node Ev'
+content' : Node Ev
 content' =
   div []
     [ div [] ["content2"]
@@ -583,7 +524,7 @@ content' =
     , button [ ref btn, onClick ClickAdd'] [ "Add todo" ]
     ]
 
-ui' : M' (MSF M' Ev' (), JSIO ())
+ui' : M' (MSF M' Ev (), JSIO ())
 ui' = do
   rawInnerHtmlAt appStyle allRules
   innerHtmlAt contentDiv content'

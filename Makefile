@@ -78,3 +78,6 @@ local-setup: build spa local-deps-teardown
 	make run-db
 	make nginx
 	make run-node
+
+watch-spa:
+	./watch.sh src/Frontend "make spa"
