@@ -256,10 +256,15 @@ fetchParseEvent method url ev = do
          (PostReq x) =>
             ignore $ fetchPost url x (\s => h (parseType {t=t} s ev)) (\e => h (handleError e))
 
+loadGames : MSF M' _ ()
+loadGames = do
+  arrM $ \_ => do
+    ignore $ fetchParseEvent GetReq {t=List GameShort} "http://\{server}/games" GamesLoaded
+
 onGameChanged : MSF M' (NP I [Nat]) ()
-onGameChanged = arrM $ \[i] => do
-  fetchParseEvent GetReq {t=GameState} "http://\{server}/games/\{show i}" GameLoaded
-  -- TODO fireEv (Err' y)
+onGameChanged = arrM (\[i] => do
+  fetchParseEvent GetReq {t=GameState} "http://\{server}/games/\{show i}" GameLoaded)
+  >>> loadGames
 
 -- below, I define some dummy MSFs for handling each of the
 -- events in question:
@@ -401,10 +406,13 @@ txtStocks : ElemRef HTMLInputElement
 txtStocks = Id Input "\{aPrefix}_newStocks"
 
 onClickAdd : MSF M' (NP I []) ()
-onClickAdd = arrM $ \_ => innerHtmlAt createTodoDiv renderForm
+onClickAdd = arrM $ \_ => do
+             x <- innerHtmlAt createTodoDiv renderForm
+             ?foo
+             pure ()
 where
   btnCreate : ElemRef HTMLButtonElement
-  btnCreate = Id Button "\{aPrefix}_createTodo"
+  btnCreate = Id Button "\{aPrefix}_createGameButton"
   lbl : (text: String) -> (class : String) -> Node ev
   lbl txt cl = label [] [Text txt]
 
@@ -458,7 +466,14 @@ readAll = MkGamePayload 1
   <**> getInput [] readList txtStocks
 
 onClickCreate : MSF M' (NP_ Type I []) ()
-onClickCreate = readAll >>> doPost'
+onClickCreate = readAll >>> doPost' >>> clearForm -- >>> reloadGames
+where
+  clearForm : MSF M' _ ()
+  clearForm = arrM $ \_ => do innerHtmlAt createTodoDiv $ div [] []
+  reloadGames : MSF M' _ ()
+  reloadGames = do
+    arrM $ \_ => do
+      ignore $ fetchParseEvent GetReq {t=List GameShort} "http://\{server}/games" GamesLoaded
 
 -- cardId=1 gameId=1 participantId=1 type=buy state=processed
 record PostMove where

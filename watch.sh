@@ -10,8 +10,9 @@ daemon() {
         chsum2=`find ${targetFolder} -type f -iname '*.idr' | xargs stat -f "%m" | md5`
         if [[ $chsum1 != $chsum2 ]] ; then
             # echo the date to indicate we are updating
-            date
+            echo "startTime: $(date)"
             eval "$CMD"
+            echo "endTime: $(date)"
             # tracks the check-sum
             chsum1=$chsum2
         fi
