@@ -101,6 +101,15 @@ createGame pool (MkGamePayload startingParticipantId title stocks) = do
   createParticipants pool id
   pure $ trace "created game \{show id}" id
 
+createMove : FromString e => Pool -> MovePayload -> Promise e IO (Int)
+createMove pool (MkMovePayload gameId participantId moveType payload) = do
+  -- BAD: vulnerable to SQL injection
+  -- need to work out how to pass a HList to the FFI
+  -- TODO wrap this in a transaction
+  resId <- query pool "INSERT INTO moves(gameId, participantId, moveType, payload) VALUES ('\{show gameId}','\{show participantId}','\{moveType}','\{payload}') RETURNING id;"
+  Just id <- lift $ getId resId | Nothing => reject $ fromString "failed to create move"
+  pure $ trace "created move \{show id}" id
+
 try : ((us : List Universe) -> (RowU us) -> Maybe z)
     -> (us : List Universe ** List (Row (RowTypes us))) -> Maybe (List z)
 try f (fst ** []) = Just []
@@ -224,7 +233,15 @@ main = eitherT putStrLn pure $ do
                 let body = ctx.request.body
                 gameId <- liftPromise $ createGame pool body
                 sendText (show gameId) ctx >>= status CREATED
-          , get $ pattern "/games" :> \ctx => do
+          , post
+              $ pattern "/moves"
+              $ consumes' [JSON]
+                  (\ctx => sendText "Content cannot be parsed: \{ctx.request.body}" ctx >>= status BAD_REQUEST)
+              $ \ctx => do
+                let body = ctx.request.body
+                moveId <- liftPromise $ createMove pool body
+                sendText (show moveId) ctx >>= status CREATED
+          ,  get $ pattern "/games" :> \ctx => do
               games <- liftPromise $ fetchGames pool
               sendJSON games ctx >>= status OK
           , get $ pattern "/games/*" :> \ctx => do

@@ -29,17 +29,6 @@ record FetchResponse where
 
 %runElab derive "FetchResponse" [Generic, Meta, Show, RecordToJSON, RecordFromJSON]
 
-record Move where
-  constructor MkMove
-  id : Nat
-  cardId : Nat
-  gameId : Nat
-  participantId : Nat
-  type : String
-  state : String
-
-%runElab derive "Move" [Generic, Meta, Show, Eq, RecordToJSON, RecordFromJSON]
-
 %foreign """
 browser:lambda:(url,h,w,e,y)=>{
   fetch(url)

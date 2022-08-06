@@ -77,3 +77,23 @@ record GamePayload where
 
 %runElab derive "GamePayload" [Generic, Meta, Show, Eq, RecordToJSON, RecordFromJSON]
 
+public export
+record Move where
+  constructor MkMove
+  id : Int
+  gameId : Int
+  participantId : Int
+  moveType : String
+  payload : String
+
+%runElab derive "Move" [Generic, Meta, Show, Eq, RecordToJSON, RecordFromJSON]
+
+public export
+record MovePayload where
+  constructor MkMovePayload
+  gameId : Int
+  participantId : Int
+  moveType : String
+  payload : String
+
+%runElab derive "MovePayload" [Generic, Meta, Show, Eq, RecordToJSON, RecordFromJSON]
