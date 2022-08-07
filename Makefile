@@ -61,7 +61,7 @@ curl:
 	@echo
 	@echo
 	$(CURLIE) -J POST :3000/moves \
-		gameId:=1 participantId:=1 moveType="buy" payload="some stockId like 1"
+		gameId:=1 participantId:=1 moveType="buy" stockId:=1
 
 restart-docker-compose:
 	docker rm -f some-postgres

@@ -186,14 +186,34 @@ data ReqMethod : Type where
   GetReq : ReqMethod
   PostReq : ToJSON t => t -> ReqMethod
 
+errorF : (Ev -> EitherT JSErr IO ()) -> (String -> EitherT JSErr IO ())
+errorF h = \e => h $ handleError e
+
+fetchForget : ReqMethod -> String -> M' ()
+fetchForget method url = do
+    h <- handler <$> env
+    case method of
+         GetReq =>
+            ignore $ fetch url (forget h "get request: \{url}") (errorF h)
+         (PostReq x) =>
+            ignore $ fetchPost url x (forget h "post request: \{url}") (errorF h)
+where
+  forget : (Ev -> EitherT JSErr IO ()) -> String -> (String -> JSIO ())
+  forget h str = (\s => h (Info str))
+
 fetchParseEvent : FromJSON t => ReqMethod -> String -> (t -> Ev) -> M' ()
 fetchParseEvent method url ev = do
     h <- handler <$> env
     case method of
          GetReq =>
-            ignore $ fetch url (\s => h (parseType {t=t} s ev)) (\e => h (handleError e))
+            ignore $ fetch url (\s => h (parseType {t=t} s ev)) (errorF h)
          (PostReq x) =>
-            ignore $ fetchPost url x (\s => h (parseType {t=t} s ev)) (\e => h (handleError e))
+            ignore $ fetchPost url x (\s => h (parseType {t=t} s ev)) (errorF h)
+
+loadGame : MSF M' (NP I [Nat]) ()
+loadGame = do
+  arrM $ \[i] => do
+    ignore $ fetchParseEvent GetReq {t=GameState} "http://\{server}/games/\{show i}" GameLoaded
 
 loadGames : MSF M' _ ()
 loadGames = do
@@ -387,17 +407,6 @@ where
     arrM $ \_ => do
       ignore $ fetchParseEvent GetReq {t=List GameShort} "http://\{server}/games" GamesLoaded
 
--- cardId=1 gameId=1 participantId=1 type=buy state=processed
-record PostMove where
-  constructor MkPostMove
-  cardId : Nat
-  gameId : Nat
-  participantId : Nat
-  type : String
-  state : String
-
-%runElab derive "PostMove" [Generic, Meta, Show, Eq, RecordToJSON, RecordFromJSON]
-
 -- fetchParseEvent {a=List Move} "http://localhost:3000/moves" MovesLoaded
 postMove : ToJSON t => String -> t -> M' ()
 postMove url body = do
@@ -405,15 +414,22 @@ postMove url body = do
     fetchPost url body (\s => h Init') (\e => h (handleError e))
     pure ()
 
+{-
+onGameChanged : MSF M' (NP I [Nat]) ()
+onGameChanged = arrM (\[i] => do
+  fetchParseEvent GetReq {t=GameState} "http://\{server}/games/\{show i}" GameLoaded)
+  >>> loadGames
+  -}
+
 onClickBuy : MSF M' (NP I [Nat]) ()
 onClickBuy = arrM $ \[n] => do
-  postMove "http://\{server}/moves" (MkPostMove n 1 1 "buy" "processing")
-  fireEv (Info "Buy clicked! id: \{show n}")
+  fetchForget (PostReq (MkMovePayload 1 1 "buy" (cast n))) "http://\{server}/moves"
+  fireEv (GameChanged 1)
 
 onClickSell : MSF M' (NP I [Nat]) ()
 onClickSell = arrM $ \[n] => do
-  postMove "http://\{server}/moves" (MkPostMove n 1 1 "sell" "processing")
-  fireEv (Info "Sell clicked! id: \{show n}")
+  fetchForget (PostReq (MkMovePayload 1 1 "sell" (cast n))) "http://\{server}/moves"
+  fireEv (GameChanged 1)
 
 sf : MSF M' Ev ()
 sf = toI . unSOP . from ^>> collect [ onInit
