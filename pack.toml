@@ -10,3 +10,9 @@ type = "github"
 url  = "https://github.com/alexhumphreys/idris2-node-postgres"
 commit = "9779f5c3b992ae9030125ba10bf92a0db727f864"
 ipkg = "idris2-node-postgres.ipkg"
+
+[custom.all.rhone-js]
+type = "github"
+url  = "https://github.com/alexhumphreys/idris2-rhone-js"
+commit = "4dd396d3c856c731faa88fcc07f0dd44a859482b"
+ipkg = "rhone-js.ipkg"

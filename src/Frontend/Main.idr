@@ -142,6 +142,10 @@ coreCSS : List (Rule 1)
 coreCSS =
   [ elem Html !! [ Height .= perc 100]
   , class "l-flex" !! [Display .= Flex]
+  , class "l-flex-row" !! [FlexDirection .= Row]
+  , class "l-flex-column" !! [FlexDirection .= Column]
+  , class "l-flex-grow1" !! [FlexGrow .= 1]
+  , class "l-flex-flow-row" !! [FlexFlow .= [Row]]
   ]
 
 allRules : String
@@ -319,11 +323,11 @@ where
   renderParticipants ls = renderListJson ls
   renderGameState : GameState -> Node Ev
   renderGameState (MkGameState id title stocks participants) =
-    div []
-      [ div [] [ Text $ show id]
-      , div [] [ Text $ title]
-      , div [] $ map (\s => div [] $ renderStockState s) stocks
-      , div [] [ renderParticipants participants]
+    div [classes ["l-flex", "l-flex-row", "l-flex-flow-row"]]
+      [ div [classes ["l-flex", "l-flex-grow1"]] [ div [] [Text $ show id], div [] [Text title]]
+      , div [classes ["l-flex", "l-flex-column", "l-flex-grow1"]]
+        $ map (\s => div [classes ["l-flex", "l-flex-row", "l-flex-grow1"]] $ renderStockState s) stocks
+      , div [classes ["l-flex", "l-flex-grow1"]] [ renderParticipants participants]
       ]
 
 onUserLoaded : MSF M' (NP I [User]) ()
