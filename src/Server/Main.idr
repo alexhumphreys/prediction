@@ -18,39 +18,10 @@ import Debug.Trace
 import Generics.Derive
 import JSON
 
+import Util
 import Types
 
 %language ElabReflection
-
-%foreign """
-node:lambda: () => {
-  const { Pool, Client } = require('pg')
-  const pool = new Pool(
-  {
-    user: 'postgres',
-    host: '127.0.0.1',
-    database: 'foo',
-    password: 'admin',
-    port: 5432,
-  }
-  )
-  return pool
-}
-"""
-prim__get_pool_ : PrimIO Pool
-
--- for querying
-getPool' : HasIO io => io Pool
-getPool' = primIO $ prim__get_pool_
-
-%foreign """
-node:lambda: (str) => { return {message: str, code: str, stack:""} }
-"""
-prim__from_string : String -> IO NodeError
-
--- TODO many many hacks
-FromString NodeError where
-  fromString x = unsafePerformIO $ prim__from_string x
 
 %runElab derive "Universe" [Generic, Meta, Eq]
 
@@ -109,11 +80,6 @@ createMove pool (MkMovePayload gameId participantId moveType stockId) = do
   resId <- query pool "INSERT INTO moves(gameId, participantId, moveType, stockId) VALUES ('\{show gameId}','\{show participantId}','\{moveType}','\{show stockId}') RETURNING id;"
   Just id <- lift $ getId resId | Nothing => reject $ fromString "failed to create move"
   pure $ trace "created move \{show id}" id
-
-try : ((us : List Universe) -> (RowU us) -> Maybe z)
-    -> (us : List Universe ** List (Row (RowTypes us))) -> Maybe (List z)
-try f (fst ** []) = Just []
-try f (fst ** (y :: xs)) = Just $ !(f fst y) :: !(try f (fst ** xs))
 
 getGames : Result -> Maybe (List GameShort)
 getGames x = try gameFromRow $ !(getAll x)
