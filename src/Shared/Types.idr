@@ -84,6 +84,7 @@ record Move where
   gameId : Int
   participantId : Int
   moveType : String
+  status : String
   stockId : Int
 
 %runElab derive "Move" [Generic, Meta, Show, Eq, RecordToJSON, RecordFromJSON]

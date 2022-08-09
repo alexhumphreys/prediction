@@ -1,22 +1,38 @@
 CURLIE ?= curlie
 
-run:
-	PGUSER=postgres PGHOST=127.0.0.1 PGPASSWORD=admin PGDATABASE=foo PGPORT=5432 node ./build/exec/prediction
-
-repl:
-	rlwrap pack --cg node repl ./src/Server/Main.idr
-
 .PHONY: build
 build:
 	npm install
 	pack --cg node build ./src/Server/config.ipkg
 	chmod +x ./src/Server/build/exec/prediction
 
-clean:
-	rm -r ./build
+run:
+	PGUSER=postgres PGHOST=127.0.0.1 PGPASSWORD=admin PGDATABASE=foo PGPORT=5432 node ./build/exec/prediction
+
+run-db:
+	docker run -it -p 5432:5432 -v $(CURDIR)/fixtures/data.sql:/docker-entrypoint-initdb.d/data.sql:ro --name some-postgres -e POSTGRES_PASSWORD=admin -e POSTGRES_DB=foo -d postgres
+
+run-node:
+	export PGUSER=postgres PGHOST=postgres PGPASSWORD=admin PGDATABASE=foo PGPORT=5432
+	node ./src/Server/build/exec/prediction
+
+run-nginx:
+	nginx -c $(CURDIR)/nginx/html
+
+repl:
+	rlwrap pack --cg node repl ./src/Server/Main.idr
+
+repl-shared:
+	rlwrap pack --cg node repl ./src/Shared/Types.idr
 
 repl-spa:
 	rlwrap -n pack --cg javascript repl ./src/Frontend/Main.idr
+
+repl-db:
+	pgcli --host 127.0.0.1 -u postgres -d foo
+
+clean:
+	rm -r ./build
 
 server:
 	pack --cg node build ./config.ipkg
@@ -32,18 +48,8 @@ open-frontend:
 json-server:
 	json-server -p 4000 --watch ./db.json
 
-.PHONY: nginx
-nginx:
-	nginx -c $(CURDIR)/nginx/html
-
-run-db:
-	docker run -it -p 5432:5432 -v $(CURDIR)/fixtures/data.sql:/docker-entrypoint-initdb.d/data.sql:ro --name some-postgres -e POSTGRES_PASSWORD=admin -e POSTGRES_DB=foo -d postgres
-
 kill-db:
 	docker rm -f some-postgres
-
-repl-db:
-	pgcli --host 127.0.0.1 -u postgres -d foo
 
 curl:
 	$(CURLIE) --retry-connrefused \
@@ -69,10 +75,6 @@ restart-docker-compose:
 	docker compose build
 	docker compose up
 
-run-node:
-	export PGUSER=postgres PGHOST=postgres PGPASSWORD=admin PGDATABASE=foo PGPORT=5432
-	node ./src/Server/build/exec/prediction
-
 local-deps-teardown:
 	docker compose down
 	docker rm -f some-postgres
@@ -80,7 +82,7 @@ local-deps-teardown:
 
 local-setup: build spa local-deps-teardown
 	make run-db
-	make nginx
+	make run-nginx
 	make run-node
 
 watch-spa:

@@ -25,17 +25,22 @@ getMoves : Result -> Maybe (List Move)
 getMoves x = try moveFromRow $ !(getAll x)
   where
     moveFromRow : (us : List Universe) -> (RowU us) -> Maybe Move
-    moveFromRow ([Num, Num, Num, Str, Num]) ([x, y, z, str, w]) =
-      Just $ MkMove (cast x) (cast y) (cast z) (cast str) (cast w)
+    moveFromRow ([Num, Num, Num, Str, Str, Num]) ([x, y, z, str, status, w]) =
+      Just $ MkMove (cast x) (cast y) (cast z) (cast str) (cast status) (cast w)
     moveFromRow _ _ = Nothing
 
 fetchMoves : Pool -> Promise NodeError IO (List Move)
 fetchMoves pool = do
-  resId <- query pool "SELECT id,gameId,participantId,moveType,stockId FROM moves;"
+  resId <- query pool "SELECT id,gameId,participantId,moveType,status,stockId FROM moves WHERE status='pending';"
   Just res <- succeed $ getMoves resId | Nothing => reject $ "couldn't parse list of moves"
   pure res
 
-printSucceded : List Move -> IO ()
+updateMove : Pool -> String -> Int -> Promise NodeError IO ()
+updateMove pool str id = do
+  _ <- query pool "UPDATE moves SET status = '\{str}' WHERE id=\{show id};"
+  pure ()
+
+printSucceded : Show x => x -> IO ()
 printSucceded x = do
   putStrLn "success"
   putStrLn $ show x
@@ -43,10 +48,21 @@ printSucceded x = do
 printFailed : NodeError -> IO ()
 printFailed x = do putStrLn "Failure: "
 
+executeMoves : Pool -> List Move -> IO ()
+executeMoves pool [] = putStrLn "no moves"
+executeMoves pool (x :: xs) = do
+  go x
+  executeMoves pool xs
+where
+  go : Move -> IO ()
+  go (MkMove id gameId participantId moveType status stockId) = do
+    putStrLn "moveId: \{show id}"
+    runPromise {m=IO} printSucceded printFailed $ updateMove pool "completed" id
+
 processMoves : IO ()
 processMoves = do
   pool <- getPool'
-  games <- runPromise {m=IO} printSucceded printFailed $ fetchMoves pool
+  moves <- runPromise {m=IO} (executeMoves pool) printFailed $ fetchMoves pool
   putStrLn "done"
 
 loop : IO ()

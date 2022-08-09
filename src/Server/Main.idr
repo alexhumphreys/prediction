@@ -77,7 +77,7 @@ createMove pool (MkMovePayload gameId participantId moveType stockId) = do
   -- BAD: vulnerable to SQL injection
   -- need to work out how to pass a HList to the FFI
   -- TODO wrap this in a transaction
-  resId <- query pool "INSERT INTO moves(gameId, participantId, moveType, stockId) VALUES ('\{show gameId}','\{show participantId}','\{moveType}','\{show stockId}') RETURNING id;"
+  resId <- query pool "INSERT INTO moves(gameId, participantId, moveType, status, stockId) VALUES ('\{show gameId}','\{show participantId}','\{moveType}','pending','\{show stockId}') RETURNING id;"
   Just id <- lift $ getId resId | Nothing => reject $ fromString "failed to create move"
   pure $ trace "created move \{show id}" id
 
