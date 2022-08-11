@@ -32,6 +32,14 @@ record Stock where
 %runElab derive "Stock" [Generic, Meta, Show, Eq, RecordToJSON, RecordFromJSON]
 
 public export
+record Game where
+  constructor MkGame
+  id : Int
+  title : String
+
+%runElab derive "Game" [Generic, Meta, Show, Eq, RecordToJSON, RecordFromJSON]
+
+public export
 record GameStock where
   constructor MkGameStock
   id : Int
@@ -61,7 +69,7 @@ record GameState where
 %runElab derive "GameState" [Generic, Meta, Show, Eq, RecordToJSON, RecordFromJSON]
 
 public export
-record GameShort where
+record GameShort where -- TODO rename to Game
   constructor MkGameShort
   id : Int
   title : String

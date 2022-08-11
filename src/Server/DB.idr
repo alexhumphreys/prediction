@@ -49,13 +49,39 @@ where
   getParticipants : Result -> Maybe (List Participant)
   getParticipants x = try participantFromRow $ !(getAll x)
 
+fetchGameStocks : Pool -> Int -> Promise NodeError IO (List GameStock)
+fetchGameStocks pool i = do
+  resGameStocks <- query pool "SELECT * FROM gameStocks WHERE gameId=\{show i};"
+  Just gameStocks <- succeed $ getGameStocks resGameStocks | Nothing => reject $ fromString "couldn't parse gameStocks for gameId: \{show i}"
+  pure gameStocks
+where
+  getGameStocks : Result -> Maybe (List GameStock)
+  getGameStocks x = try gameStockFromRow $ !(getAll x)
+    where
+      gameStockFromRow : (us : List Universe) -> (RowU us) -> Maybe GameStock
+      gameStockFromRow ([Num, Num, Num, Num]) ([x, gi, si, amount]) = Just $ MkGameStock (cast x) (cast gi) (cast si) (cast amount)
+      gameStockFromRow _ _ = Nothing
+
+
+export
+fetchJustGame : Pool -> Int -> Promise NodeError IO (GameShort)
+fetchJustGame pool i = do
+  resGame <- query pool "SELECT id,title FROM games WHERE id=\{show i};"
+  Just game <- succeed $ getGame resGame | Nothing => reject $ fromString "couldn't parse game \{show i}"
+  pure game
+where
+  getGame : Result -> Maybe (GameShort)
+  getGame x = head' !(try gameFromRow $ !(getAll x))
+    where
+      gameFromRow : (us : List Universe) -> (RowU us) -> Maybe GameShort
+      gameFromRow ([Num, Str]) ([x, str]) = Just $ MkGameShort (cast x) (cast str)
+      gameFromRow _ _ = Nothing
+
 export
 fetchGame : Pool -> Int -> Promise NodeError IO (GameState)
 fetchGame pool i = do
-  resGame <- query pool "SELECT id,title FROM games WHERE id=\{show i};"
-  Just game <- succeed $ getGame resGame | Nothing => reject $ fromString "couldn't parse game \{show i}"
-  resGameStocks <- query pool "SELECT * FROM gameStocks WHERE gameId=\{show i};"
-  Just gameStocks <- succeed $ getGameStocks resGameStocks | Nothing => reject $ fromString "couldn't parse gameStocks for gameId: \{show i}"
+  game <- fetchJustGame pool i
+  gameStocks <- fetchGameStocks pool i
   stocks <- fetchStocks pool gameStocks
   participants <- fetchParticipants pool game
   pure $ mkGameState game gameStocks stocks participants
@@ -74,10 +100,3 @@ where
          (Just stock) => MkStockState stockId (description stock) amount :: mkStockStates xs ys
   mkGameState : GameShort -> List GameStock -> List Stock -> List Participant -> GameState
   mkGameState (MkGameShort id title) xs ys zs = MkGameState id title (mkStockStates xs ys) zs
-  getGameStocks : Result -> Maybe (List GameStock)
-  getGameStocks x = try gameStockFromRow $ !(getAll x)
-    where
-      gameStockFromRow : (us : List Universe) -> (RowU us) -> Maybe GameStock
-      gameStockFromRow ([Num, Num, Num, Num]) ([x, gi, si, amount]) = Just $ MkGameStock (cast x) (cast gi) (cast si) (cast amount)
-      gameStockFromRow _ _ = Nothing
-
