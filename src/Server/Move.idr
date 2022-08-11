@@ -60,20 +60,26 @@ where
     putStrLn "moveId: \{show id}"
     runPromise {m=IO} printSucceded printFailed $ updateMove pool "completed" id
 
-processMoves'' : Pool -> List Move -> Promise NodeError IO ()
-processMoves'' pool [] = pure ()
-processMoves'' pool (m@(MkMove id gameId participantId moveType status stockId) :: xs) = do
+processMove : Pool -> Move -> Promise NodeError IO ()
+processMove pool m@(MkMove id gameId participantId moveType status stockId) = do
   game <- fetchGame pool gameId
-  case validBuyMove m game of
-       (Left x) => do
-         updateMove pool "failed" id
-         processMoves'' pool xs
-       (Right x) => do
-         putStrLn "TODO update game state"
-         updateMove pool "completed" id
-         putStrLn "TODO update as move succeeded"
-         processMoves'' pool xs
+  case moveType of
+    "buy" => do
+      doUpdate $ validBuyMove m game
+    "sell" => do
+      doUpdate $ validSellMove m game
+    x => do
+      putStrLn "invalid move type: \{x}"
 where
+  doUpdate : Either String () -> Promise NodeError IO ()
+  doUpdate res =
+    case res of
+         (Left x) => do
+           updateMove pool "failed" id
+         (Right x) => do
+           putStrLn "TODO update game state"
+           updateMove pool "completed" id
+           putStrLn "TODO update as move succeeded"
   validSellMove : Move -> GameState -> Either String ()
   validSellMove _ _ = Left "not implemented yet"
   validBuyMove : Move -> GameState -> Either String ()
@@ -104,7 +110,7 @@ where
 processMoves' : Pool -> Promise NodeError IO ()
 processMoves' pool = do
   moves <- fetchMoves pool
-  processMoves'' pool moves
+  ignore $ traverse (processMove pool) moves
 
 processMoves : IO ()
 processMoves = do
