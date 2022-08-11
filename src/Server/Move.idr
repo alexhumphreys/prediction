@@ -20,6 +20,7 @@ import JSON
 import Util
 
 import Types
+import DB
 
 getMoves : Result -> Maybe (List Move)
 getMoves x = try moveFromRow $ !(getAll x)
@@ -59,10 +60,56 @@ where
     putStrLn "moveId: \{show id}"
     runPromise {m=IO} printSucceded printFailed $ updateMove pool "completed" id
 
+processMoves'' : Pool -> List Move -> Promise NodeError IO ()
+processMoves'' pool [] = pure ()
+processMoves'' pool (m@(MkMove id gameId participantId moveType status stockId) :: xs) = do
+  game <- fetchGame pool gameId
+  case validBuyMove m game of
+       (Left x) => do
+         updateMove pool "failed" id
+         processMoves'' pool xs
+       (Right x) => do
+         putStrLn "TODO update game state"
+         updateMove pool "completed" id
+         putStrLn "TODO update as move succeeded"
+         processMoves'' pool xs
+where
+  validSellMove : Move -> GameState -> Either String ()
+  validSellMove _ _ = Left "not implemented yet"
+  validBuyMove : Move -> GameState -> Either String ()
+  validBuyMove (MkMove i gi pi mt s si) (MkGameState y title stockState participatns) =
+    let participant = Data.List.find (\p => Types.Participant.id p == pi) (participatns)
+        stock = Data.List.find (\p => Types.StockState.stockId p == pi) (stockState)
+    in
+        case (participant, stock) of
+             (Nothing, Nothing) => Left "participant and stock not found"
+             (Nothing, (Just x)) => Left "participant not found"
+             ((Just x), Nothing) => Left "stock not found"
+             ((Just (MkParticipant x w userId money)), (Just (MkStockState z description amount))) => do
+               enoughMoney money
+               enoughStock amount
+               pure ()
+    where
+      enoughMoney : Int -> Either String ()
+      enoughMoney x =
+        case x > 0 of -- TODO pricing
+             False => Left "Not enough money"
+             True => pure ()
+      enoughStock : Int -> Either String ()
+      enoughStock x =
+        case x > 0 of
+             False => Left "Not enough stock"
+             True => pure ()
+
+processMoves' : Pool -> Promise NodeError IO ()
+processMoves' pool = do
+  moves <- fetchMoves pool
+  processMoves'' pool moves
+
 processMoves : IO ()
 processMoves = do
   pool <- getPool'
-  moves <- runPromise {m=IO} (executeMoves pool) printFailed $ fetchMoves pool
+  moves <- runPromise {m=IO} printSucceded printFailed $ processMoves' pool
   putStrLn "done"
 
 loop : IO ()
