@@ -20,13 +20,13 @@ run-nginx:
 	nginx -c $(CURDIR)/nginx/html
 
 repl:
-	rlwrap pack --cg node repl ./src/Server/Main.idr
+	rlwrap -n -A pack --cg node repl ./src/Server/Main.idr
 
 repl-shared:
-	rlwrap pack --cg node repl ./src/Shared/Types.idr
+	rlwrap -n -A pack --cg node repl ./src/Shared/Types.idr
 
 repl-spa:
-	rlwrap -n pack --cg javascript repl ./src/Frontend/Main.idr
+	rlwrap -n -A pack --cg javascript repl ./src/Frontend/Main.idr
 
 repl-db:
 	pgcli --host 127.0.0.1 -u postgres -d foo

@@ -20,6 +20,12 @@ gameId INT NOT NULL REFERENCES games(id),
 userId INT NOT NULL REFERENCES users(id),
 money INT NOT NULL);
 
+CREATE TABLE IF NOT EXISTS participantStocks
+(id SERIAL PRIMARY KEY,
+participantId INT NOT NULL REFERENCES participants(id),
+stockId INT NOT NULL REFERENCES stocks(id),
+amount INT NOT NULL DEFAULT 0);
+
 CREATE TABLE IF NOT EXISTS gameStocks
 (id SERIAL PRIMARY KEY,
 gameId INT NOT NULL REFERENCES games(id),

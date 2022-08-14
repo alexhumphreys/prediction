@@ -49,6 +49,55 @@ printSucceded x = do
 printFailed : NodeError -> IO ()
 printFailed x = do putStrLn "Failure: "
 
+validBuyMove : Move -> GameState -> Either String ()
+validBuyMove (MkMove i gi pi mt s m si) (MkGameState y title stockState participatns) =
+  let participant = Data.List.find (\p => Types.Participant.id p == pi) (participatns)
+      stock = Data.List.find (\p => Types.StockState.stockId p == pi) (stockState)
+  in
+      case (participant, stock) of
+           (Nothing, Nothing) => Left "participant and stock not found"
+           (Nothing, (Just x)) => Left "participant not found"
+           ((Just x), Nothing) => Left "stock not found"
+           ((Just (MkParticipant x w userId money)), (Just (MkStockState z description amount))) => do
+             enoughMoney money
+             enoughStock amount
+             pure ()
+  where
+    enoughMoney : Int -> Either String ()
+    enoughMoney x =
+      case x > 0 of -- TODO pricing
+           False => Left "Not enough money"
+           True => pure ()
+    enoughStock : Int -> Either String ()
+    enoughStock x =
+      case x > 0 of
+           False => Left "Not enough stock"
+           True => pure ()
+
+validSellMove : Move -> GameState -> Either String ()
+validSellMove (MkMove i gi pi mt s m si) (MkGameState y title stockState participatns) =
+  let participant = Data.List.find (\p => Types.Participant.id p == pi) (participatns)
+      stock = Data.List.find (\p => Types.StockState.stockId p == pi) (stockState)
+  in
+      case (participant, stock) of
+           (Nothing, Nothing) => Left "participant and stock not found"
+           (Nothing, (Just x)) => Left "participant not found"
+           ((Just x), Nothing) => Left "stock not found"
+           ((Just (MkParticipant x w userId money)), (Just (MkStockState z description amount))) => do
+             enoughStock amount
+             pure ()
+  where
+    enoughMoney : Int -> Either String ()
+    enoughMoney x =
+      case x > 0 of -- TODO pricing
+           False => Left "Not enough money"
+           True => pure ()
+    enoughStock : Int -> Either String ()
+    enoughStock x =
+      case x > 0 of
+           False => Left "Not enough stock"
+           True => pure ()
+
 processMove : Pool -> Move -> Promise NodeError IO ()
 processMove pool m@(MkMove id gameId participantId moveType status message stockId) = do
   game <- fetchGame pool gameId
@@ -71,30 +120,6 @@ where
            putStrLn "TODO update as move succeeded"
   validSellMove : Move -> GameState -> Either String ()
   validSellMove _ _ = Left "not implemented yet"
-  validBuyMove : Move -> GameState -> Either String ()
-  validBuyMove (MkMove i gi pi mt s m si) (MkGameState y title stockState participatns) =
-    let participant = Data.List.find (\p => Types.Participant.id p == pi) (participatns)
-        stock = Data.List.find (\p => Types.StockState.stockId p == pi) (stockState)
-    in
-        case (participant, stock) of
-             (Nothing, Nothing) => Left "participant and stock not found"
-             (Nothing, (Just x)) => Left "participant not found"
-             ((Just x), Nothing) => Left "stock not found"
-             ((Just (MkParticipant x w userId money)), (Just (MkStockState z description amount))) => do
-               enoughMoney money
-               enoughStock amount
-               pure ()
-    where
-      enoughMoney : Int -> Either String ()
-      enoughMoney x =
-        case x > 0 of -- TODO pricing
-             False => Left "Not enough money"
-             True => pure ()
-      enoughStock : Int -> Either String ()
-      enoughStock x =
-        case x > 0 of
-             False => Left "Not enough stock"
-             True => pure ()
 
 processMoves' : Pool -> Promise NodeError IO ()
 processMoves' pool = do

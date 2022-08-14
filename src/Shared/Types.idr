@@ -50,6 +50,16 @@ record GameStock where
 %runElab derive "GameStock" [Generic, Meta, Show, Eq, RecordToJSON, RecordFromJSON]
 
 public export
+record ParticipantStock where
+  constructor MkParticipantStock
+  id : Int
+  participantId : Int
+  stockId : Int
+  amount : Int
+
+%runElab derive "ParticipantStock" [Generic, Meta, Show, Eq, RecordToJSON, RecordFromJSON]
+
+public export
 record StockState where
   constructor MkStockState
   stockId : Int
