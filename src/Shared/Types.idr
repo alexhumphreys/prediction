@@ -93,6 +93,7 @@ record Move where
   participantId : Int
   moveType : String
   status : String
+  message : String
   stockId : Int
 
 %runElab derive "Move" [Generic, Meta, Show, Eq, RecordToJSON, RecordFromJSON]

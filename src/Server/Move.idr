@@ -26,19 +26,19 @@ getMoves : Result -> Maybe (List Move)
 getMoves x = try moveFromRow $ !(getAll x)
   where
     moveFromRow : (us : List Universe) -> (RowU us) -> Maybe Move
-    moveFromRow ([Num, Num, Num, Str, Str, Num]) ([x, y, z, str, status, w]) =
-      Just $ MkMove (cast x) (cast y) (cast z) (cast str) (cast status) (cast w)
+    moveFromRow ([Num, Num, Num, Str, Str, Str, Num]) ([x, y, z, str, status, mes, w]) =
+      Just $ MkMove (cast x) (cast y) (cast z) (cast str) (cast status) (cast mes) (cast w)
     moveFromRow _ _ = Nothing
 
 fetchMoves : Pool -> Promise NodeError IO (List Move)
 fetchMoves pool = do
-  resId <- query pool "SELECT id,gameId,participantId,moveType,status,stockId FROM moves WHERE status='pending';"
+  resId <- query pool "SELECT id,gameId,participantId,moveType,status,message,stockId FROM moves WHERE status='pending';"
   Just res <- succeed $ getMoves resId | Nothing => reject $ "couldn't parse list of moves"
   pure res
 
-updateMove : Pool -> String -> Int -> Promise NodeError IO ()
-updateMove pool str id = do
-  _ <- query pool "UPDATE moves SET status = '\{str}' WHERE id=\{show id};"
+updateMove : Pool -> String -> String -> Int -> Promise NodeError IO ()
+updateMove pool str message id = do
+  _ <- query pool "UPDATE moves SET status = '\{str}',message = '\{message}' WHERE id=\{show id};"
   pure ()
 
 printSucceded : Show x => x -> IO ()
@@ -49,19 +49,8 @@ printSucceded x = do
 printFailed : NodeError -> IO ()
 printFailed x = do putStrLn "Failure: "
 
-executeMoves : Pool -> List Move -> IO ()
-executeMoves pool [] = putStrLn "no moves"
-executeMoves pool (x :: xs) = do
-  go x
-  executeMoves pool xs
-where
-  go : Move -> IO ()
-  go (MkMove id gameId participantId moveType status stockId) = do
-    putStrLn "moveId: \{show id}"
-    runPromise {m=IO} printSucceded printFailed $ updateMove pool "completed" id
-
 processMove : Pool -> Move -> Promise NodeError IO ()
-processMove pool m@(MkMove id gameId participantId moveType status stockId) = do
+processMove pool m@(MkMove id gameId participantId moveType status message stockId) = do
   game <- fetchGame pool gameId
   case moveType of
     "buy" => do
@@ -75,15 +64,15 @@ where
   doUpdate res =
     case res of
          (Left x) => do
-           updateMove pool "failed" id
+           updateMove pool "failed" x id
          (Right x) => do
            putStrLn "TODO update game state"
-           updateMove pool "completed" id
+           updateMove pool "completed" "succeeded" id
            putStrLn "TODO update as move succeeded"
   validSellMove : Move -> GameState -> Either String ()
   validSellMove _ _ = Left "not implemented yet"
   validBuyMove : Move -> GameState -> Either String ()
-  validBuyMove (MkMove i gi pi mt s si) (MkGameState y title stockState participatns) =
+  validBuyMove (MkMove i gi pi mt s m si) (MkGameState y title stockState participatns) =
     let participant = Data.List.find (\p => Types.Participant.id p == pi) (participatns)
         stock = Data.List.find (\p => Types.StockState.stockId p == pi) (stockState)
     in

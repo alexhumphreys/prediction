@@ -32,6 +32,7 @@ gameId INT NOT NULL REFERENCES games(id),
 participantId INT NOT NULL REFERENCES participants(id),
 moveType VARCHAR NOT NULL,
 status VARCHAR NOT NULL,
+message VARCHAR NOT NULL,
 stockId INT NOT NULL REFERENCES stocks(id));
 
 INSERT INTO users(name) VALUES ('alice');
