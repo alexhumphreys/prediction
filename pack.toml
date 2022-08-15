@@ -8,7 +8,7 @@ ipkg = "config.ipkg"
 [custom.all.idris2-node-postgres]
 type = "github"
 url  = "https://github.com/alexhumphreys/idris2-node-postgres"
-commit = "56a2090"
+commit = "ee5ed68"
 ipkg = "idris2-node-postgres.ipkg"
 
 [custom.all.rhone-js]
